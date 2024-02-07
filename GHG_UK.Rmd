@@ -1,0 +1,115 @@
+---
+title: "GHG Emissions of the UK"
+author: "Kaydee S. Barker"
+date: '2024-01-25'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+rm(list=ls()) #clear global environment/workspace
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r load libraries, warning=FALSE}
+
+library(tidyverse) #Tidy packages
+library(dplyr)
+library(ggplot2) #Pretty plots
+library(readODS) #read ods files
+library(plotly) #interactive web graphs
+
+
+```
+
+## The National Atmospheric Emissions Inventory of the UK
+
+Introduction to the inventory, with links
+kilotonnes of CO2 equivalents
+
+
+```{r load data, categorize, warning=FALSE}
+
+#Download UK 2022 data from the UK Department for Energy Security and Net Zero
+download.file("https://assets.publishing.service.gov.uk/media/65c0d54663a23d000dc821ca/final-greenhouse-gas-emissions-2022-by-source-dataset.ods", #update this link when new data available
+              "/Users/kaydeebarker/Dropbox/Kaydee docs/Code/GHG Emissions UK/UKGHG_2022.ods", #file path
+              quiet = FALSE, #gives status update as default, true doesn't
+              headers = NULL)
+
+#Read in UK 2022 data from the UK Department for Energy Security and Net Zero
+GHG_UK22 <- read_ods(
+  path = "UKGHG_2022.ods",
+  sheet = 1, #define tab/sheet to read
+  col_names = TRUE, #use header row for column names
+  col_types = NULL, #guess data types
+  na = "", #treat blank cells as NA
+  skip = 0, #don't skip rows
+  formula_as_formula = FALSE, #values only
+  range = NULL, 
+  row_names = FALSE, #no row names
+  strings_as_factors = TRUE) %>% #use factors
+  rename("Subsector" = "TES Subsector") #rename variable
+
+#Create dataframe with only categorization
+GHG_categories <- GHG_UK22[, c(3,6:12)] %>%
+  distinct() 
+
+#IPCC code and TES subsectors - for categorization
+GHG_IPCC_subsector <- GHG_UK22[, c(3,7)] %>%
+  distinct() %>%
+  rename("IPCC_code" = "IPCC Code") #rename variable to match other df
+
+
+#Download UK Regional data 1990-2021 from the UK National Atmospheric Emissions Inventory
+download.file("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2021_Final_v3.1.xlsx", #update this link when new data
+              "/Users/kaydeebarker/Dropbox/Kaydee docs/Code/GHG Emissions UK/GHG_regions.xlsx", #file path
+              quiet = FALSE, #gives status update as default, true doesn't
+              headers = NULL)
+
+#Read in excel file, by source, with region
+GHG_regions <- read_xlsx(
+  "GHG_regions.xlsx", #excel file from current working directory
+  sheet = "BySource_data", #define tab/sheet to read
+  col_names = TRUE, #use header row for column names
+  col_types = NULL, #guess data types
+  na = "", #treat blank cells as NA
+  trim_ws = TRUE, #trim any whitespace/unused columns and rows
+  skip = 6, #skip 6 rows to get to pivot table data
+  n_max = Inf, #set maximum number of rows to include
+  guess_max = min(1000, Inf), #how many rows to use to guess data types
+  progress = readxl_progress(), #display progress in reading in data
+  .name_repair = "unique" #makes sure all column names not empty or duplicated
+)
+
+#Add subsector into GHG_regions, match format 
+GHG_regions2 <- inner_join(GHG_IPCC_subsector, GHG_regions,
+	by='IPCC_code') %>% #use inner join to combine dataframes by a shared variable
+  rename("GHG" = "Pollutant") %>% #rename variable to match UK only csv
+  rename("National Communication Sector" = "NCFormat") #rename variable to match UK only csv
+
+```
+
+## Sankey Diagram
+
+```{r, warning=FALSE}
+
+
+```
+
+## Time Series
+
+```{r, warning=FALSE}
+
+
+```
+
+
+## Bar Graphs per Sector and Subsector
+
+### Agriculture
+
+```{r, warning=FALSE}
+
+
+```
