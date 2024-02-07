@@ -14,12 +14,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r load libraries, warning=FALSE}
 
+library(readODS) #read ods files
+library(readxl) #reads excel files
 library(tidyverse) #Tidy packages
 library(dplyr)
-library(ggplot2) #Pretty plots
-library(readODS) #read ods files
+library(ggplot2) #pretty plots
+library(ggthemes) #themes for ggplot
+library(scales) #axis formatting options
 library(plotly) #interactive web graphs
-
 
 ```
 
@@ -57,7 +59,7 @@ GHG_categories <- GHG_UK22[, c(3,6:12)] %>%
   distinct() 
 
 #IPCC code and TES subsectors - for categorization
-GHG_IPCC_subsector <- GHG_UK22[, c(3,7)] %>%
+GHG_IPCC_TES <- GHG_UK22[, c(3,6,7)] %>%
   distinct() %>%
   rename("IPCC_code" = "IPCC Code") #rename variable to match other df
 
@@ -83,23 +85,60 @@ GHG_regions <- read_xlsx(
 )
 
 #Add subsector into GHG_regions, match format 
-GHG_regions2 <- inner_join(GHG_IPCC_subsector, GHG_regions,
+GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
 	by='IPCC_code') %>% #use inner join to combine dataframes by a shared variable
   rename("GHG" = "Pollutant") %>% #rename variable to match UK only csv
-  rename("National Communication Sector" = "NCFormat") #rename variable to match UK only csv
+  rename("NC_Sector" = "NCFormat") %>% #rename variable
+  rename("TES_Sector" = "TES Sector") #rename variable
 
 ```
 
-## Sankey Diagram
+## Visualization
+
+```{r set up design elements, warning=FALSE}
+
+#Define a custom palette
+#Defra_Palette <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7")
+
+```
+
+
+### Sankey Diagram
 
 ```{r, warning=FALSE}
 
 
+
 ```
 
-## Time Series
+## Time Series Graph of Emissions by Sector
 
-```{r, warning=FALSE}
+```{r time plot, warning=FALSE}
+
+#Plot time series
+Sect_time <- GHG_regions2 %>%
+  group_by(EmissionYear, TES_Sector) %>%
+  summarize(Temissions = sum(Emission, na.rm = TRUE)) %>%
+  rename("Sector" = "TES_Sector") %>%
+ggplot(aes(x=as.numeric(EmissionYear), y=Temissions, color=Sector)) +
+  geom_line() +
+  xlab("") + ylab("Greenhouse Gas Emissions (kilotonnes CO2 equivalents)") +
+  theme_few() +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(breaks = pretty(c(1990:2020), n=6)) +
+  scale_color_brewer(palette = "Set2") +
+  theme(legend.title = element_blank(), legend.position="bottom")
+
+#Sect_time #view ggplot
+
+ggplotly(Sect_time) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h"))
+
+  
+#plotly customization
+style(Sect_time, hovertemplate="Year: %{x:,.r}
+CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y values to 4 sig. figs
 
 
 ```
