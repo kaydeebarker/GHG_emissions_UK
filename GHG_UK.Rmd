@@ -31,11 +31,12 @@ kilotonnes of CO2 equivalents
 
 ```{r load data, categorize, warning=FALSE}
 
-#Download UK 2022 data from the UK Department for Energy Security and Net Zero
-download.file("https://assets.publishing.service.gov.uk/media/65c0d54663a23d000dc821ca/final-greenhouse-gas-emissions-2022-by-source-dataset.ods", #update this link when new data available
-              "/Users/kaydeebarker/Dropbox/Kaydee docs/Code/GHG Emissions UK/UKGHG_2022.ods", #file path
-              quiet = FALSE, #gives status update as default, true doesn't
-              headers = NULL)
+# Map loop to download UK 2022 data from the UK Department for Energy Security and Net Zero
+downloaded <- file.exists("UKGHG_2022.ods") #checks if file is downloaded in working directory
+if(downloaded != T){ #if downloaded is not true
+  map2("https://assets.publishing.service.gov.uk/media/65c0d54663a23d000dc821ca/final-greenhouse-gas-emissions-2022-by-source-dataset.ods", #update this link when new data available
+                         "UKGHG_2022.ods", download.file)} else{print('data downloaded')} #name and download or print
+
 
 #Read in UK 2022 data from the UK Department for Energy Security and Net Zero
 GHG_UK22 <- read_ods(
@@ -60,12 +61,11 @@ GHG_IPCC_subsector <- GHG_UK22[, c(3,7)] %>%
   distinct() %>%
   rename("IPCC_code" = "IPCC Code") #rename variable to match other df
 
-
-#Download UK Regional data 1990-2021 from the UK National Atmospheric Emissions Inventory
-download.file("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2021_Final_v3.1.xlsx", #update this link when new data
-              "/Users/kaydeebarker/Dropbox/Kaydee docs/Code/GHG Emissions UK/GHG_regions.xlsx", #file path
-              quiet = FALSE, #gives status update as default, true doesn't
-              headers = NULL)
+# Map loop to download UK Regional data 1990-2021 from the UK National Atmospheric Emissions Inventory
+downloaded2 <- file.exists("GHG_regions.xlsx") #checks if file is downloaded in working directory
+if(downloaded2 != T){ #if downloaded is not true
+  map2("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2021_Final_v3.1.xlsx", #update this link when new data available
+                        "GHG_regions.xlsx", download.file)} else{print('data downloaded')} #name and download or print
 
 #Read in excel file, by source, with region
 GHG_regions <- read_xlsx(
