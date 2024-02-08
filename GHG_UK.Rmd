@@ -91,6 +91,21 @@ GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
   rename("NC_Sector" = "NCFormat") %>% #rename variable
   rename("TES_Sector" = "TES Sector") #rename variable
 
+#Simplify regional dataset
+GHG_simp <- GHG_regions2 %>%
+  group_by(EmissionYear, TES_Sector, Subsector, RegionName, GHG) %>%
+  summarize(Temissions = sum(Emission, na.rm = TRUE)) %>%
+  rename("Sector" = "TES_Sector")
+
+#2021 only
+GHG_2021 <- GHG_simp %>%
+    filter(EmissionYear == "2021") #filter to only 2021
+
+#Grouped into all of UK
+GHG_2021_joined <- GHG_2021 %>%
+  group_by(Sector, Subsector, GHG) %>%
+  summarize(Temissions = sum(Temissions, na.rm = TRUE))
+
 ```
 
 ## Visualization
@@ -107,6 +122,10 @@ GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
 
 ```{r, warning=FALSE}
 
+#Set up Sankey links, nodes
+
+
+#Plot
 
 
 ```
@@ -122,22 +141,23 @@ Sect_time <- GHG_regions2 %>%
   rename("Sector" = "TES_Sector") %>%
 ggplot(aes(x=as.numeric(EmissionYear), y=Temissions, color=Sector)) +
   geom_line() +
-  xlab("") + ylab("Greenhouse Gas Emissions (kilotonnes CO2 equivalents)") +
+  xlab("") + ylab("Greenhouse Gas Emissions (kilotonnes CO2 eq.)") +
+  ggtitle("Greenhouse Gas Emissions of the UK per Sector Over Time") +
   theme_few() +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(breaks = pretty(c(1990:2020), n=6)) +
   scale_color_brewer(palette = "Set2") +
-  theme(legend.title = element_blank(), legend.position="bottom")
+  theme(legend.position="bottom")
 
-#Sect_time #view ggplot
+Sect_time #view ggplot
 
-ggplotly(Sect_time) %>% #convert to interactive graph
+#Make interactive
+t_int <- ggplotly(Sect_time) %>% #convert to interactive graph
   layout(legend = list(
       orientation = "h"))
-
   
 #plotly customization
-style(Sect_time, hovertemplate="Year: %{x:,.r}
+style(t_int, hovertemplate="Year: %{x:,.r}
 CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y values to 4 sig. figs
 
 
