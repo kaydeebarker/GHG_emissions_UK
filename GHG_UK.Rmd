@@ -22,6 +22,7 @@ library(ggplot2) #pretty plots
 library(ggthemes) #themes for ggplot
 library(scales) #axis formatting options
 library(plotly) #interactive web graphs
+library(networkD3) #interactive web network graphs
 
 ```
 
@@ -122,12 +123,28 @@ GHG_2021_joined <- GHG_2021 %>%
 
 ```{r, warning=FALSE}
 
-#Set up Sankey links, nodes
+#Set up Sankey links & nodes - networkD3 library - create a node data frame: it lists every entities involved in the flow
+links <- data.frame(source=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)), 
+                    target=c(paste0(GHG_2021_joined$Subsector), paste0(GHG_2021_joined$GHG)),
+                    value=(paste0(GHG_2021_joined$Temissions)))
 
+links <- links[-c(83:85),]
+
+nodes <- data.frame(
+  name=c(as.character(links$source), 
+  as.character(links$target)) %>% unique())
+
+# With networkD3, connection must be provided using id - So we need to reformat it.
+links$IDsource <- match(links$source, nodes$name)-1 
+links$IDtarget <- match(links$target, nodes$name)-1
 
 #Plot
+sankey <- sankeyNetwork(Links = links, Nodes = nodes,
+              Source = "IDsource", Target = "IDtarget",
+              Value = "value", NodeID = "name", 
+              sinksRight=FALSE)
 
-
+sankey
 ```
 
 ## Time Series Graph of Emissions by Sector
