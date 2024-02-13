@@ -124,18 +124,19 @@ GHG_2021_joined <- GHG_2021 %>%
 
 ```{r sankey 1, warning=FALSE}
 
-#Set up Sankey links & nodes dataframes
+#Set up Sankey links dataframe
 links <- data.frame(source=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)), 
                     target=c(paste0(GHG_2021_joined$Subsector), paste0(GHG_2021_joined$GHG)),
                     value=(paste0(GHG_2021_joined$Temissions)))
 
-links <- links[-c(83:85),] 
+links <- links[-c(83:85),] #remove instances with repeat name
 
+#Create nodes df from names in links df
 nodes <- data.frame(
   name=c(as.character(links$source), 
   as.character(links$target)) %>% unique())
 
-#With networkD3, connection must be provided using id - So we need to reformat it.
+#Add ID numbers
 links$IDsource <- match(links$source, nodes$name)-1 
 links$IDtarget <- match(links$target, nodes$name)-1
 
@@ -204,6 +205,7 @@ fig
 
 ```{r sankey2, warning=FALSE}
 
+
 #Make into lists, add label list
 linklist <- as.list(links)
 linklist$value <- as.numeric(linklist$value)
@@ -216,8 +218,6 @@ linklist$label <- c("","","","","","","","","","","","","","","","","","","","",
                     "","","","","","","","","","","","","","","","","","","","",
                     "","","","","","","","","","","","","","","","","","","","",
                     "","","","","","","")
-
-links_p <- plot_ly(links, type = list)
 
   
 nodecolors <- nodes %>%
@@ -232,10 +232,11 @@ nodecolors <- nodes %>%
                    "#938E8B","#BFBFBF","#3B3734","#7A7979","#383838","#898887","#D3D1D0"))
 nodelist <- as.list(nodecolors)
 
-nodes_p <- plot_ly(nodecolors, type=list)
-
 #Plot with Plotly
 sankey2 <- plot_ly(type = "sankey",
+                   domain = list(
+                     x =  c(0,1),
+                     y =  c(0,1)),
                    orientation = "h",
                    valueformat = ".0f",
                    valuesuffix = "kt CO2 eq.",
@@ -248,8 +249,9 @@ sankey2 <- plot_ly(type = "sankey",
       link = list(
         source = linklist$IDsource,
         target = linklist$IDtarget,
-        value = linklist$value,
-        label = linklist$label)))
+        value = linklist$value
+        #label = linklist$label
+        )))
 
 sankey2 <- sankey2 %>% layout(
     title = "Greenhouse Gas Emissions Per Sector in the UK",
@@ -258,6 +260,7 @@ sankey2 <- sankey2 %>% layout(
     yaxis = list(showgrid = F, zeroline = F))
 
 sankey2
+
 
 ```
 
