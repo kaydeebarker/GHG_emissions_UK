@@ -17,13 +17,17 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readODS) #read ods files
 library(readxl) #reads excel files
 library(tidyverse) #Tidy packages
-library(dplyr)
+library(dplyr) #lots of functions - data manipulation
+library(usethis) #look at and apply settings to Github actions
 library(ggplot2) #pretty plots
 library(ggthemes) #themes for ggplot
-library(RColorBrewer)
+library(RColorBrewer) #color palettes
 library(scales) #axis formatting options
-library(plotly) #interactive web graphs
-library(networkD3) #interactive web network graphs
+library(plotly) #interactive web graphs (install with Github)
+library(networkD3) #interactive web network graphs (install with Github)
+library(flipPlots) #plots (install with Github)
+
+usethis::edit_r_environ() #set environment with Github token for API
 
 ```
 
@@ -110,7 +114,7 @@ GHG_2021_joined <- GHG_2021 %>%
 
 ```
 
-## Visualization
+## Visualization at High Level
 
 ```{r set up design elements, warning=FALSE}
 
@@ -122,23 +126,35 @@ GHG_2021_joined <- GHG_2021 %>%
 
 ### Sankey Diagram
 
-```{r sankey 1, warning=FALSE}
+```{r sankey networkD3, warning=FALSE}
 
 #Set up Sankey links dataframe
 links <- data.frame(source=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)), 
                     target=c(paste0(GHG_2021_joined$Subsector), paste0(GHG_2021_joined$GHG)),
-                    value=(paste0(GHG_2021_joined$Temissions)))
+                    value=as.numeric(paste0(GHG_2021_joined$Temissions)))
 
 links <- links[-c(83:85),] #remove instances with repeat name
 
 #Create nodes df from names in links df
 nodes <- data.frame(
-  name=c(as.character(links$source), 
-  as.character(links$target)) %>% unique())
+  name=unique(c(as.character(links$source), 
+  as.character(links$target))))
 
 #Add ID numbers
-links$IDsource <- match(links$source, nodes$name)-1 
-links$IDtarget <- match(links$target, nodes$name)-1
+links$IDsource <- as.numeric(match(links$source, nodes$name)-1)
+links$IDtarget <- as.numeric(match(links$target, nodes$name)-1)
+
+#Define colors
+nodecolors <- nodes %>%
+  mutate(color = c("#FFD700","#EA5F94","#9D02D7","#FA8775","#FFB14E","#CD34B5","#0000FF",
+                   "#C9A600","#C7A600","#917800","#BEA767",
+                   "#E5A0BE","#FF7ECB","#B42A66","#A7003B",
+                   "#A400EC","#6B00B9","#631F90","#C860EA","#310074",
+                   "#C35849",
+                   "#C8811C","#FFAC1E","#BC8644","#9C4F00","#E1BA91",
+                   "#774BE5","#2C15B2","#000097","#6836FF","#0000E3","#0000C7","#000096",
+                   "#644540",
+                   "#938E8B","#BFBFBF","#3B3734","#7A7979","#383838","#898887","#D3D1D0"))
 
 #Plot with networkD3
 sankey <- sankeyNetwork(Links = links, Nodes = nodes,
@@ -153,119 +169,66 @@ sankey
 
 ```
 
-```{r sankey test, warning=FALSE}
+```{r sankey flipplot, warning=FALSE}
 
-library(rjson)
-
-json_file <- "https://raw.githubusercontent.com/plotly/plotly.js/master/test/image/mocks/sankey_energy.json"
-json_data <- fromJSON(paste(readLines(json_file), collapse=""))
-
-fig <- plot_ly(
-    type = "sankey",
-    domain = list(
-      x =  c(0,1),
-      y =  c(0,1)
-    ),
-    orientation = "h",
-    valueformat = ".0f",
-    valuesuffix = "TWh",
-
-    node = list(
-      label = json_data$data[[1]]$node$label,
-      color = json_data$data[[1]]$node$color,
-      pad = 15,
-      thickness = 15,
-      line = list(
-        color = "black",
-        width = 0.5
-      )
-    ),
-
-    link = list(
-      source = json_data$data[[1]]$link$source,
-      target = json_data$data[[1]]$link$target,
-      value =  json_data$data[[1]]$link$value,
-      label =  json_data$data[[1]]$link$label
-    )
-  ) 
-fig <- fig %>% layout(
-    title = "Energy forecast for 2050<br>Source: Department of Energy & Climate Change, Tom Counsell via <a href='https://bost.ocks.org/mike/sankey/'>Mike Bostock</a>",
-    font = list(
-      size = 10
-    ),
-    xaxis = list(showgrid = F, zeroline = F),
-    yaxis = list(showgrid = F, zeroline = F)
+sankey2 <- SankeyDiagram(
+  data = links,
+  output.data.only = FALSE,
+  weights = links$value,
+  font.size = 12,
+  font.family = "Times New Roman",
+  font.unit = "pt", #sets font size to point instead of pixels
+  colors = NULL,
+  link.color = "Source", #sets link color to same as source node
+  variables.share.values = FALSE,
+  label.show.varname = TRUE, #show the variable name in the node label
+  label.max.length = 100, #maximum characters in label
+  label.show.counts = FALSE, #show count data in label
+  label.show.percentages = FALSE, #show percent in label
+  node.position.automatic = TRUE,
+  node.width = 30,
+  node.padding = 10, #vertical space between nodes
+  sinks.right = TRUE, 
+  hovertext.show.percentages = TRUE #show percent in hover label
 )
 
-fig
-
+sankey2
 
 ```
 
 
-```{r sankey2, warning=FALSE}
-
-
-#Make into lists, add label list
-linklist <- as.list(links)
-linklist$value <- as.numeric(linklist$value)
-linklist$label <- c("","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","","","","","","","","","","","","","","",
-                    "","","","","","","")
-
-  
-nodecolors <- nodes %>%
-  mutate(color = c("#FFD700","#EA5F94","#9D02D7","#FA8775","#FFB14E","#CD34B5","#0000FF",
-                   "#C9A600","#C7A600","#917800","#BEA767",
-                   "#E5A0BE","#FF7ECB","#B42A66","#A7003B",
-                   "#A400EC","#6B00B9","#631F90","#C860EA","#310074",
-                   "#C35849",
-                   "#C8811C","#FFAC1E","#BC8644","#9C4F00","#E1BA91",
-                   "#774BE5","#2C15B2","#000097","#6836FF","#0000E3","#0000C7","#000096",
-                   "#644540",
-                   "#938E8B","#BFBFBF","#3B3734","#7A7979","#383838","#898887","#D3D1D0"))
-nodelist <- as.list(nodecolors)
+```{r sankey plotly, warning=FALSE}
 
 #Plot with Plotly
-sankey2 <- plot_ly(type = "sankey",
-                   domain = list(
-                     x =  c(0,1),
-                     y =  c(0,1)),
+sankey3 <- plot_ly(type = "sankey",
+                   domain = list(x =  c(0,1),y =  c(0,1)),
                    orientation = "h",
                    valueformat = ".0f",
                    valuesuffix = "kt CO2 eq.",
       node = list(
-        label = nodelist$name,
-        color = nodelist$color,
+        label = nodes$name,
         pad = 15,
         thickness = 20,
         line = list(color = "black", width = 0.5),
       link = list(
-        source = linklist$IDsource,
-        target = linklist$IDtarget,
-        value = linklist$value
+        source = links$IDsource,
+        target = links$IDtarget,
+        value = links$value
         #label = linklist$label
-        )))
-
-sankey2 <- sankey2 %>% layout(
+        ))) %>% 
+  layout(
     title = "Greenhouse Gas Emissions Per Sector in the UK",
     font = list(size = 10),
     xaxis = list(showgrid = F, zeroline = F),
     yaxis = list(showgrid = F, zeroline = F))
 
-sankey2
+sankey3
 
 
 ```
 
 
-## Time Series Graph of Emissions by Sector
+### Time Series Graph of Emissions by Sector
 
 ```{r time plot, warning=FALSE}
 
@@ -299,11 +262,46 @@ CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y val
 ```
 
 
-## Bar Graphs per Sector and Subsector
+## Sector and Subsector Summaries
+
+```{r data seubsets, warning=FALSE}
+
+ag_df <- GHG_regions2 %>%
+  filter(TES_Sector == "Agriculture") %>% #filter sector
+  filter(EmissionYear == "2021") %>% #filter to only 2021 
+  group_by(Subsector, IPCC_name, GHG) %>%
+  summarize(Temissions = sum(Emission, na.rm = TRUE))
+
+```
 
 ### Agriculture
 
 ```{r, warning=FALSE}
+
+#Set up Sankey links dataframe
+aglinks <- data.frame(source=c(paste0(ag_df$GHG), paste0(ag_df$Subsector)), 
+                    target=c(paste0(ag_df$Subsector), paste0(ag_df$IPCC_name)),
+                    value=as.numeric(paste0(ag_df$Temissions)))
+
+#Create nodes df from names in links df
+agnodes <- data.frame(
+  name=unique(c(as.character(aglinks$source), 
+  as.character(aglinks$target))))
+
+#Add ID numbers
+aglinks$IDsource <- as.numeric(match(aglinks$source, agnodes$name)-1)
+aglinks$IDtarget <- as.numeric(match(aglinks$target, agnodes$name)-1)
+
+
+#Plot with networkD3
+agsankey <- sankeyNetwork(Links = aglinks, Nodes = agnodes,
+              Source = "IDsource", Target = "IDtarget",
+              Value = "value", NodeID = "name",
+              units = "kilotonnes CO2 eq.",
+              sinksRight=FALSE, nodePadding = 8,
+              iterations = 5)
+
+agsankey
 
 
 ```
