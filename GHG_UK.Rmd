@@ -22,9 +22,10 @@ library(usethis) #look at and apply settings to Github actions
 library(ggplot2) #pretty plots
 library(ggthemes) #themes for ggplot
 library(RColorBrewer) #color palettes
+library(wesanderson) #color palettes from Wes Anderson films
 library(scales) #axis formatting options
-library(plotly) #interactive web graphs (install with Github)
-library(networkD3) #interactive web network graphs (install with Github)
+library(plotly) #interactive web graphs
+library(networkD3) #interactive web network graphs
 library(flipPlots) #plots (install with Github)
 
 usethis::edit_r_environ() #set environment with Github token for API
@@ -118,17 +119,23 @@ GHG_2021_joined <- GHG_2021 %>%
 
 ```{r set up design elements, warning=FALSE}
 
-#Define a custom palette
-#Defra_Palette <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7")
+#Define custom color palette
+colors <- paste(c('#543005','#8c510a','#bf812d','#dfc27d','#f6e8c3','#f5f5f5','#c7eae5','#80cdc1','#35978f','#01665e',
+                  '#003c30','#40004b','#762a83','#9970ab','#c2a5cf','#e7d4e8','#f7f7f7','#d9f0d3','#a6dba0','#5aae61',
+                  '#1b7837','#00441b','#67001f','#b2182b','#d6604d','#f4a582','#fddbc7','#f7f7f7','#d1e5f0','#92c5de',
+                  '#4393c3','#2166ac','#053061','#c51b7d','#de77ae','#f1b6da','#fde0ef','#e6f5d0','#b8e186','#7fbc41',
+                  '#4d9221'), collapse = '", "')
+
+colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript D3
 
 ```
 
 
 ### Sankey Diagram
 
-```{r sankey networkD3, warning=FALSE}
+```{r sankey networkD3, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2021. From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
 
-#Set up Sankey links dataframe
+#Set up Sankey links dataframe - from sector to subsector to GHGs
 links <- data.frame(source=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)), 
                     target=c(paste0(GHG_2021_joined$Subsector), paste0(GHG_2021_joined$GHG)),
                     value=as.numeric(paste0(GHG_2021_joined$Temissions)))
@@ -144,55 +151,36 @@ nodes <- data.frame(
 links$IDsource <- as.numeric(match(links$source, nodes$name)-1)
 links$IDtarget <- as.numeric(match(links$target, nodes$name)-1)
 
-#Define colors
-nodecolors <- nodes %>%
-  mutate(color = c("#FFD700","#EA5F94","#9D02D7","#FA8775","#FFB14E","#CD34B5","#0000FF",
-                   "#C9A600","#C7A600","#917800","#BEA767",
-                   "#E5A0BE","#FF7ECB","#B42A66","#A7003B",
-                   "#A400EC","#6B00B9","#631F90","#C860EA","#310074",
-                   "#C35849",
-                   "#C8811C","#FFAC1E","#BC8644","#9C4F00","#E1BA91",
-                   "#774BE5","#2C15B2","#000097","#6836FF","#0000E3","#0000C7","#000096",
-                   "#644540",
-                   "#938E8B","#BFBFBF","#3B3734","#7A7979","#383838","#898887","#D3D1D0"))
+#Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
+links2 <- data.frame(source=c(paste0(GHG_2021_joined$GHG), paste0(GHG_2021_joined$Sector)), 
+                    target=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)),
+                    value=as.numeric(paste0(GHG_2021_joined$Temissions))) 
+
+links2 <- links2[-c(168:170),] #remove instances with repeat name
+
+#Create nodes df from names in links df
+nodes2 <- data.frame(
+  name=unique(c(as.character(links2$source), 
+  as.character(links2$target))))
+
+#Add ID numbers
+links2$IDsource <- as.numeric(match(links2$source, nodes2$name)-1)
+links2$IDtarget <- as.numeric(match(links2$target, nodes2$name)-1)
 
 #Plot with networkD3
-sankey <- sankeyNetwork(Links = links, Nodes = nodes,
-              Source = "IDsource", Target = "IDtarget",
-              Value = "value", NodeID = "name",
-              units = "kilotonnes CO2 eq.",
-              sinksRight=FALSE, nodePadding = 8,
-              iterations = 5)
+sankey <- sankeyNetwork(Links = links2, Nodes = nodes2, #dataframes to use
+              Source = "IDsource", Target = "IDtarget", #numeric identifiers of variables
+              Value = "value", #numeric weights
+							NodeID = "name", #node labels
+              units = "kt CO2 eq.", #label units
+							colourScale = colorJS,
+							fontSize = 7,
+              sinksRight=FALSE, #justify last variables right if true
+							nodePadding = 8, #vertical space between nodes
+              iterations = 10) #number of times for it to try to find the best order and format
 
-sankey
+sankey #view plot
 
-
-```
-
-```{r sankey flipplot, warning=FALSE}
-
-sankey2 <- SankeyDiagram(
-  data = links,
-  output.data.only = FALSE,
-  weights = links$value,
-  font.size = 12,
-  font.family = "Times New Roman",
-  font.unit = "pt", #sets font size to point instead of pixels
-  colors = NULL,
-  link.color = "Source", #sets link color to same as source node
-  variables.share.values = FALSE,
-  label.show.varname = TRUE, #show the variable name in the node label
-  label.max.length = 100, #maximum characters in label
-  label.show.counts = FALSE, #show count data in label
-  label.show.percentages = FALSE, #show percent in label
-  node.position.automatic = TRUE,
-  node.width = 30,
-  node.padding = 10, #vertical space between nodes
-  sinks.right = TRUE, 
-  hovertext.show.percentages = TRUE #show percent in hover label
-)
-
-sankey2
 
 ```
 
@@ -230,7 +218,7 @@ sankey3
 
 ### Time Series Graph of Emissions by Sector
 
-```{r time plot, warning=FALSE}
+```{r time plot, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK over time, by sector."}
 
 #Plot time series
 Sect_time <- GHG_regions2 %>%
@@ -247,7 +235,7 @@ ggplot(aes(x=as.numeric(EmissionYear), y=Temissions, color=Sector)) +
   scale_color_brewer(palette = "Set2") +
   theme(legend.position="bottom")
 
-Sect_time #view ggplot
+#Sect_time #view ggplot
 
 #Make interactive with Plotly
 t_int <- ggplotly(Sect_time) %>% #convert to interactive graph
@@ -264,19 +252,20 @@ CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y val
 
 ## Sector and Subsector Summaries
 
-```{r data seubsets, warning=FALSE}
+```{r data subsets, warning=FALSE}
 
 ag_df <- GHG_regions2 %>%
   filter(TES_Sector == "Agriculture") %>% #filter sector
   filter(EmissionYear == "2021") %>% #filter to only 2021 
-  group_by(Subsector, IPCC_name, GHG) %>%
+  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
   summarize(Temissions = sum(Emission, na.rm = TRUE))
+ag_df$IPCC_name <- gsub('_', ' ', ag_df$IPCC_name) #replace underscores with spaces to make nicer to read
 
 ```
 
 ### Agriculture
 
-```{r, warning=FALSE}
+```{r ag sankey, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
 aglinks <- data.frame(source=c(paste0(ag_df$GHG), paste0(ag_df$Subsector)), 
@@ -303,5 +292,126 @@ agsankey <- sankeyNetwork(Links = aglinks, Nodes = agnodes,
 
 agsankey
 
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by subsector, colored by greenhouse gas identity."}
+
+#Bar plot by subsector, stacked by GHG
+ggplot(ag_df, aes(x = Subsector, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  xlab("Subsector") + ylab("Emissions (kt CO2 eq.)") #define/change X and Y labels
 
 ```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap=" ."}
+
+#Will make donut or pie chart here
+
+
+
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by source, colored by subsector."}
+
+#Bar plot by source
+ggplot(ag_df, aes(x = IPCC_name, y = Temissions, fill = Subsector)) + 
+  geom_bar(stat = "identity", width = 0.7, position = "dodge") + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Agriculture emissions in 2021") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="top", legend.box = "horizontal",
+        text=element_text(size=10, colour = "black"), 
+        axis.text.x = element_text(size=8, colour = "black"))
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by IPCC code, colored by subsector and grouped by greenhouse gas identity."}
+
+#Bar plot by source, facet by GHG
+ggplot(ag_df, aes(x = IPCC_code, y = Temissions, fill = Subsector)) + 
+  geom_bar(stat = "identity", width = 0.7, position = "dodge") + facet_grid(~ GHG) +
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  scale_x_discrete(guide = guide_axis(angle = 90)) +
+  ggtitle("Agriculture emissions in 2021") + #add a graph title
+  xlab("Source IPCC Code") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(text=element_text(size=8, colour = "black"))
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural combustion subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot combustion, stacked by GHG
+ag_df %>%
+  filter(Subsector == "Agricultural combustion") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector emissions in 2021") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x = element_text(size=8, colour = "black"))
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot soils, stacked by GHG
+ag_df %>%
+  filter(Subsector == "Agricultural soils") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector emissions in 2021") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x = element_text(size=8, colour = "black"))
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot livestock, stacked by GHG
+ag_df %>%
+  filter(Subsector == "Livestock") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector emissions in 2021") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x = element_text(size=8, colour = "black"))
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot other ag, stacked by GHG
+ag_df %>%
+  filter(Subsector == "Other agriculture") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector emissions in 2021") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x = element_text(size=8, colour = "black"))
+  
+```
+
+
+
+
+
