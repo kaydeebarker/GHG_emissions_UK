@@ -1,23 +1,23 @@
 ---
 title: "GHG Emissions of the UK"
 author: "Kaydee S. Barker"
-date: '2024-01-25'
+date: 'Feb. 2024'
 output: 
   html_document:
     toc: yes
     toc_float: yes
-  pdf_document:
-    toc: yes
 ---
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 
 rm(list=ls()) #clear global environment/workspace
-knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE) #set echo and message to false universally
+#knitr::knit(input = "GHG_UK.Rmd", output = "index.html")
+#rmarkdown::render(input = "GHG_UK.Rmd", output_file = "index.html") #set name of knit file
 
 ```
 
-```{r load libraries, warning=FALSE}
+```{r, message=FALSE}
 
 library(readODS) #read ods files
 library(readxl) #reads excel files
@@ -43,7 +43,7 @@ Introduction to the inventory, with links
 kilotonnes of CO2 equivalents
 
 
-```{r load data, categorize, warning=FALSE}
+```{r, warning=FALSE}
 
 # Map loop to download UK 2022 data from the UK Department for Energy Security and Net Zero
 downloaded <- file.exists("UKGHG_2022.ods") #checks if file is downloaded in working directory
@@ -122,7 +122,7 @@ GHG_2021_joined <- GHG_2021 %>%
 
 ## Visualization at High Level
 
-```{r set up design elements, warning=FALSE}
+```{r, warning=FALSE}
 
 #Define custom color palette
 colors <- paste(c('#40004b','#67001f','#b2182b','#dfc27d','#f6e8c3','#fddbc7','#fde0ef',
@@ -140,7 +140,7 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 
 ### Sankey Diagram
 
-```{r sankey networkD3, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2021. From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2021. From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
 
 #Set up Sankey links dataframe - from sector to subsector to GHGs
 links <- data.frame(source=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)), 
@@ -192,7 +192,7 @@ sankey #view plot
 ```
 
 
-```{r sankey plotly, eval=FALSE, include=FALSE}
+```{r, eval=FALSE, include=FALSE}
 
 #Plot with Plotly
 sankey3 <- plot_ly(type = "sankey",
@@ -225,7 +225,7 @@ sankey3
 
 ### Time Series Graph of Emissions by Sector
 
-```{r time plot, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK over time, by sector."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK over time, by sector."}
 
 #Plot time series
 Sect_time <- GHG_regions2 %>%
@@ -261,7 +261,7 @@ CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y val
 
 ### Agriculture
 
-```{r data subsets, warning=FALSE}
+```{r, warning=FALSE}
 
 ag_df <- GHG_regions2 %>%
   filter(TES_Sector == "Agriculture") %>% #filter sector
@@ -274,7 +274,7 @@ ag_df$IPCC_name <- gsub('_', ' ', ag_df$IPCC_name) #replace underscores with spa
 ```
 
 #### Agriculture Sankey Diagram
-```{r ag sankey, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
 aglinks <- data.frame(source=c(paste0(ag_df$GHG), paste0(ag_df$Subsector)), 
@@ -443,7 +443,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot soils, stacked by GHG
 agsoil <- ag_df %>%
@@ -473,7 +473,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot livestock, stacked by GHG
 agls <- ag_df %>%
