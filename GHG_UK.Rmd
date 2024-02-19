@@ -2,13 +2,18 @@
 title: "GHG Emissions of the UK"
 author: "Kaydee S. Barker"
 date: '2024-01-25'
-output: html_document
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
 ---
 
 ```{r setup, include=FALSE}
 
 rm(list=ls()) #clear global environment/workspace
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
 
 ```
 
@@ -44,7 +49,7 @@ kilotonnes of CO2 equivalents
 downloaded <- file.exists("UKGHG_2022.ods") #checks if file is downloaded in working directory
 if(downloaded != T){ #if downloaded is not true
   map2("https://assets.publishing.service.gov.uk/media/65c0d54663a23d000dc821ca/final-greenhouse-gas-emissions-2022-by-source-dataset.ods", #update this link when new data available
-                         "UKGHG_2022.ods", download.file)} else{print('data downloaded')} #name and download or print
+                         "UKGHG_2022.ods", download.file)} #else{print('data downloaded')} #name and download or print
 
 
 #Read in UK 2022 data from the UK Department for Energy Security and Net Zero
@@ -74,7 +79,7 @@ GHG_IPCC_TES <- GHG_UK22[, c(3,6,7)] %>%
 downloaded2 <- file.exists("GHG_regions.xlsx") #checks if file is downloaded in working directory
 if(downloaded2 != T){ #if downloaded is not true
   map2("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2021_Final_v3.1.xlsx", #update this link when new data available
-                        "GHG_regions.xlsx", download.file)} else{print('data downloaded')} #name and download or print
+                        "GHG_regions.xlsx", download.file)} #else{print('data downloaded')} #name and download or print
 
 #Read in excel file, by source, with region
 GHG_regions <- read_xlsx(
@@ -120,11 +125,13 @@ GHG_2021_joined <- GHG_2021 %>%
 ```{r set up design elements, warning=FALSE}
 
 #Define custom color palette
-colors <- paste(c('#543005','#8c510a','#bf812d','#dfc27d','#f6e8c3','#f5f5f5','#c7eae5','#80cdc1','#35978f','#01665e',
-                  '#003c30','#40004b','#762a83','#9970ab','#c2a5cf','#e7d4e8','#f7f7f7','#d9f0d3','#a6dba0','#5aae61',
-                  '#1b7837','#00441b','#67001f','#b2182b','#d6604d','#f4a582','#fddbc7','#f7f7f7','#d1e5f0','#92c5de',
-                  '#4393c3','#2166ac','#053061','#c51b7d','#de77ae','#f1b6da','#fde0ef','#e6f5d0','#b8e186','#7fbc41',
-                  '#4d9221'), collapse = '", "')
+colors <- paste(c('#40004b','#67001f','#b2182b','#dfc27d','#f6e8c3','#fddbc7','#fde0ef',
+                  '#FF7E70','#2852A8','#DBB96E','#786EDB','#BD9DAC','#9C9075','#01665e','#6EDB93',
+                  '#FF9C91','#FFD4E8','#CC995E','#FF8F99','#80AAFF',
+                  '#6EDB70','#948B76','#D4B0C0','#BD5E53','#708670',
+                  '#3D7EFF','#A496FF','#8C80DA','#62B2B5','#9E002F',
+                  '#D90041','#FF2949','#58B059','#448745','#F5CE7A',
+                  '#FFBF76','#7BE1E5','#7CF77E','#D4C39F','#FFEBBF','#536353'), collapse = '", "')
 
 colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript D3
 
@@ -133,7 +140,7 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 
 ### Sankey Diagram
 
-```{r sankey networkD3, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2021. From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
+```{r sankey networkD3, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2021. From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
 
 #Set up Sankey links dataframe - from sector to subsector to GHGs
 links <- data.frame(source=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)), 
@@ -185,7 +192,7 @@ sankey #view plot
 ```
 
 
-```{r sankey plotly, warning=FALSE}
+```{r sankey plotly, eval=FALSE, include=FALSE}
 
 #Plot with Plotly
 sankey3 <- plot_ly(type = "sankey",
@@ -218,7 +225,7 @@ sankey3
 
 ### Time Series Graph of Emissions by Sector
 
-```{r time plot, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK over time, by sector."}
+```{r time plot, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK over time, by sector."}
 
 #Plot time series
 Sect_time <- GHG_regions2 %>%
@@ -252,6 +259,8 @@ CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y val
 
 ## Sector and Subsector Summaries
 
+### Agriculture
+
 ```{r data subsets, warning=FALSE}
 
 ag_df <- GHG_regions2 %>%
@@ -261,11 +270,11 @@ ag_df <- GHG_regions2 %>%
   summarize(Temissions = sum(Emission, na.rm = TRUE))
 ag_df$IPCC_name <- gsub('_', ' ', ag_df$IPCC_name) #replace underscores with spaces to make nicer to read
 
+
 ```
 
-### Agriculture
-
-```{r ag sankey, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+#### Agriculture Sankey Diagram
+```{r ag sankey, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
 aglinks <- data.frame(source=c(paste0(ag_df$GHG), paste0(ag_df$Subsector)), 
@@ -294,120 +303,231 @@ agsankey
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by subsector, colored by greenhouse gas identity."}
+#### Agriculture Breakdown Graphs
+
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut chart of the UK's agriculture greenhouse gas emissions by greenhouse gas identity in 2021."}
+
+#Make pie chart of emissions by greenhouse gas
+agpie_ghg <- ag_df %>% plot_ly(labels = ~GHG, values = ~Temissions) %>% 
+  add_pie(hole = 0.6) %>% 
+  layout(title = "Emissions by Greenhouse Gas Identity",  showlegend = T,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+style(agpie_ghg, hovertemplate="%{label} 
+      Emissions: %{value:,.4r} kt CO2 eq.
+      %{percent}
+      <extra></extra>") 
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut chart of the UK's agriculture greenhouse gas emissions by subsector in 2021."}
+
+#Make pie chart of emissions by subsector
+agpie_ss <- ag_df %>% plot_ly(labels = ~Subsector, values = ~Temissions) %>% 
+  add_pie(hole = 0.6) %>% 
+  layout(title = "Emissions by Subsector",  showlegend = T,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+style(agpie_ss, hovertemplate="%{label} 
+      Emissions: %{value:,.4r} kt CO2 eq.
+      %{percent}
+      <extra></extra>") 
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by GHG
-ggplot(ag_df, aes(x = Subsector, y = Temissions, fill = GHG)) + 
+agbar <- ggplot(ag_df, aes(x = Subsector, y = Temissions, fill = GHG)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   xlab("Subsector") + ylab("Emissions (kt CO2 eq.)") #define/change X and Y labels
 
+#Make interactive with Plotly
+agbar_int <- ggplotly(agbar) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h"))
+  
+#Plotly customization
+style(agbar_int, hovertemplate="Subsector: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap=" ."}
-
-#Will make donut or pie chart here
 
 
 
 
-```
-
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by source, colored by subsector."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by source, colored by subsector."}
 
 #Bar plot by source
-ggplot(ag_df, aes(x = IPCC_name, y = Temissions, fill = Subsector)) + 
+agsource <- ggplot(ag_df, aes(x = IPCC_name, y = Temissions, fill = Subsector)) + 
   geom_bar(stat = "identity", width = 0.7, position = "dodge") + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Agriculture emissions in 2021") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="top", legend.box = "horizontal",
-        text=element_text(size=10, colour = "black"), 
-        axis.text.x = element_text(size=8, colour = "black"))
+        text=element_text(size=10, colour = "black"), axis.text.x=element_blank())
+#axis.text.x = element_text(size=8, colour = "black")
+
+#Make interactive with Plotly
+agsource_int <- ggplotly(agsource) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(agsource_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by IPCC code, colored by subsector and grouped by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by IPCC code, colored by subsector and grouped by greenhouse gas identity."}
 
 #Bar plot by source, facet by GHG
-ggplot(ag_df, aes(x = IPCC_code, y = Temissions, fill = Subsector)) + 
+agfacet <- ggplot(ag_df, aes(x = IPCC_name, y = Temissions, fill = Subsector)) + 
   geom_bar(stat = "identity", width = 0.7, position = "dodge") + facet_grid(~ GHG) +
-  theme_few() + #remove grid, white background
+  theme_light() + 
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  scale_x_discrete(guide = guide_axis(angle = 90)) +
+  #scale_x_discrete(guide = guide_axis(angle = 90)) +
   ggtitle("Agriculture emissions in 2021") + #add a graph title
-  xlab("Source IPCC Code") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
-  theme(text=element_text(size=8, colour = "black"))
+  xlab("Source") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        text=element_text(size=8, colour = "black"), axis.text.x=element_blank())
+
+#Make interactive with Plotly
+agfacet_int <- ggplotly(agfacet) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(agfacet_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural combustion subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural combustion subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot combustion, stacked by GHG
-ag_df %>%
+agcom <- ag_df %>%
   filter(Subsector == "Agricultural combustion") %>%
 ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector emissions in 2021") + #add a graph title
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Agricultural Combustion") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x = element_text(size=8, colour = "black"))
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+agcom_int <- ggplotly(agcom) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(agcom_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot soils, stacked by GHG
-ag_df %>%
+agsoil <- ag_df %>%
   filter(Subsector == "Agricultural soils") %>%
 ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector emissions in 2021") + #add a graph title
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Agricultural Soils") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x = element_text(size=8, colour = "black"))
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+agsoil_int <- ggplotly(agsoil) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(agsoil_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot livestock, stacked by GHG
-ag_df %>%
+agls <- ag_df %>%
   filter(Subsector == "Livestock") %>%
 ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector emissions in 2021") + #add a graph title
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Livestock") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x = element_text(size=8, colour = "black"))
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+agls_int <- ggplotly(agls) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(agls_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '70%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot other ag, stacked by GHG
-ag_df %>%
+agother <- ag_df %>%
   filter(Subsector == "Other agriculture") %>%
 ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector emissions in 2021") + #add a graph title
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Other Agriculture") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x = element_text(size=8, colour = "black"))
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+agother_int <- ggplotly(agother) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(agother_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
   
 ```
 
