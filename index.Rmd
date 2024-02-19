@@ -1,7 +1,7 @@
 ---
 title: "GHG Emissions of the UK"
 author: "Kaydee S. Barker"
-date: 'Feb. 2024'
+date: '2024-02-19'
 output: 
   html_document:
     toc: yes
@@ -502,7 +502,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot other ag, stacked by GHG
 agother <- ag_df %>%
