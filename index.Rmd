@@ -1,7 +1,7 @@
 ---
 title: "GHG Emissions of the UK"
 author: "Kaydee S. Barker"
-date: '2024-02-19'
+date: 'Feb. 2024'
 output: 
   html_document:
     toc: yes
@@ -324,9 +324,7 @@ agpie <- ag_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal
 style(agpie, hovertemplate="%{label} 
       Emissions: %{value:,.4r} kt CO2 eq.
       %{percent}
-      <extra></extra>") 
-
-
+      <extra></extra>")
 
 ```
 
@@ -545,6 +543,8 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 
 ### LULUCF
+
+Note - possibly some replicate data or miscategorization - need to clean up the data for this section.
 
 ```{r, warning=FALSE}
 
@@ -887,3 +887,145 @@ hovertemplate="Source: %{x}
 Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
   
 ```
+
+### Waste
+
+```{r, warning=FALSE}
+
+waste_df <- GHG_regions2 %>%
+  filter(TES_Sector == "Waste") %>% #filter sector
+  filter(EmissionYear == "2021") %>% #filter to only 2021 
+  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
+  summarize(Temissions = sum(Emission, na.rm = TRUE)) 
+waste_df$IPCC_name <- gsub('_', ' ', waste_df$IPCC_name) #replace underscores with spaces to make nicer to read
+
+#wide - split GHGs
+waste_wideGHG <- waste_df %>%
+  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  replace(is.na(.), 0)
+
+```
+
+#### Waste Sankey Diagram
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+
+#Set up Sankey links dataframe
+wastelinks <- data.frame(source=c(paste0(waste_df$GHG), paste0(waste_df$Subsector)), 
+                    target=c(paste0(waste_df$Subsector), paste0(waste_df$IPCC_name)),
+                    value=as.numeric(paste0(waste_df$Temissions)))
+
+#Create nodes df from names in links df
+wastenodes <- data.frame(
+  name=unique(c(as.character(wastelinks$source), 
+  as.character(wastelinks$target))))
+
+#Add ID numbers
+wastelinks$IDsource <- as.numeric(match(wastelinks$source, wastenodes$name)-1)
+wastelinks$IDtarget <- as.numeric(match(wastelinks$target, wastenodes$name)-1)
+
+
+#Plot with networkD3
+wastesankey <- sankeyNetwork(Links = wastelinks, Nodes = wastenodes,
+              Source = "IDsource", Target = "IDtarget",
+              Value = "value", NodeID = "name",
+              units = "kilotonnes CO2 eq.",
+              sinksRight=FALSE, nodePadding = 35,
+              iterations = 45)
+
+wastesankey
+
+```
+
+#### Waste Breakdown Graphs
+
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's waste greenhouse gas emissions by greenhouse gas identity and subsector in 2021."}
+
+wastepie <- waste_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
+  add_pie(labels = ~GHG, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
+  add_pie(labels = ~IPCC_name, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
+  layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
+         #annotations = list(list(x = 0.20 , y = 1, text = "Emissions by Greenhouse Gas Identity"), 
+          #                  list(x = 0.80 , y = 1, text = "Emissions by Subsector")),
+         grid=list(rows=1, columns=3),
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) 
+
+style(wastepie, hovertemplate="%{label} 
+      Emissions: %{value:,.4r} kt CO2 eq.
+      %{percent}
+      <extra></extra>")
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's waste sector in 2021 by subsector, colored by greenhouse gas identity."}
+
+#Bar plot by subsector, stacked by GHG
+wastebar <- ggplot(waste_df, aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  xlab("Source") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="top", legend.box = "horizontal",
+        text=element_text(size=10, colour = "black"), axis.text.x=element_blank())
+
+#Make interactive with Plotly
+wastebar_int <- ggplotly(wastebar) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h"))
+  
+#Plotly customization
+style(wastebar_int, hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+
+
+### Buildings and product uses
+
+```{r, warning=FALSE}
+
+build_df <- GHG_regions2 %>%
+  filter(TES_Sector == "Buildings and product uses") %>% #filter sector
+  filter(EmissionYear == "2021") %>% #filter to only 2021 
+  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
+  summarize(Temissions = sum(Emission, na.rm = TRUE)) 
+build_df$IPCC_name <- gsub('_', ' ', build_df$IPCC_name) #replace underscores with spaces to make nicer to read
+
+#wide - split GHGs
+build_wideGHG <- build_df %>%
+  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  replace(is.na(.), 0)
+
+```
+
+#### Buildings and Products Sankey Diagram
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+
+#Set up Sankey links dataframe
+buildlinks <- data.frame(source=c(paste0(build_df$GHG), paste0(build_df$Subsector)), 
+                    target=c(paste0(build_df$Subsector), paste0(build_df$IPCC_name)),
+                    value=as.numeric(paste0(build_df$Temissions)))
+
+#Create nodes df from names in links df
+buildnodes <- data.frame(
+  name=unique(c(as.character(buildlinks$source), 
+  as.character(buildlinks$target))))
+
+#Add ID numbers
+buildlinks$IDsource <- as.numeric(match(buildlinks$source, buildnodes$name)-1)
+buildlinks$IDtarget <- as.numeric(match(buildlinks$target, buildnodes$name)-1)
+
+
+#Plot with networkD3
+buildsankey <- sankeyNetwork(Links = buildlinks, Nodes = buildnodes,
+              Source = "IDsource", Target = "IDtarget",
+              Value = "value", NodeID = "name",
+              units = "kilotonnes CO2 eq.",
+              sinksRight=FALSE, nodePadding = 15,
+              iterations = 15)
+
+buildsankey
+
+```
+
