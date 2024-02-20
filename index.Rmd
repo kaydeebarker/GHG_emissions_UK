@@ -619,7 +619,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 ```
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2021 by source, colored by subsector."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot by source with Plotly
 LULUCFsource <- LULUCFwideGHG %>% 
@@ -685,3 +685,205 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the bioenergy crops subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot subsector, stacked by GHG
+biocrops <- LULUCF %>%
+  filter(Subsector == "Bioenergy crops") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Bioenergy Crops") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+biocrops_int <- ggplotly(biocrops) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(biocrops_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the cropland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot subsector, stacked by GHG
+cropsoilchg <- LULUCF %>%
+  filter(Subsector == "Cropland mineral soils change") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Cropland Mineral Soils Change") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+cropsoilchg_int <- ggplotly(cropsoilchg) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(cropsoilchg_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the grassland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot subsector, stacked by GHG
+grsoilchg <- LULUCF %>%
+  filter(Subsector == "Grassland mineral soils change") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Grassland Mineral Soils Change") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+grsoilchg_int <- ggplotly(grsoilchg) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(grsoilchg_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the forestry subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot subsector, stacked by GHG
+forestry <- LULUCF %>%
+  filter(Subsector == "Forestry") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Forestry") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+forestry_int <- ggplotly(forestry) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(forestry_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the peatland subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot subsector, stacked by GHG
+peat <- LULUCF %>%
+  filter(Subsector == "Peatland") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Peatland") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+peat_int <- ggplotly(peat) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(peat_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the settlement subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot subsector, stacked by GHG
+settle <- LULUCF %>%
+  filter(Subsector == "Settlement") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Settlement") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+settle_int <- ggplotly(settle) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(settle_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the 'other' LULUCF subsector in 2021 by source, colored by greenhouse gas identity."}
+
+#Bar plot other ag, stacked by GHG
+Lother <- LULUCF %>%
+  filter(Subsector == "Other LULUCF") %>%
+ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  geom_col() + 
+  theme_few() + #remove grid, white background
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  #scale_x_discrete(guide = guide_axis(angle = 45)) +
+  ggtitle("Subsector Emissions in 2021: Other LULUCF") + #add a graph title
+  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  theme(legend.position="left", legend.box = "vertical", 
+        axis.text.x=element_blank())
+        #axis.text.x = element_text(size=8, colour = "black"))
+
+#Make interactive with Plotly
+Lother_int <- ggplotly(Lother) %>% #convert to interactive graph
+  layout(legend = list(
+      orientation = "h",
+      xaxis = list(showticklabels=FALSE)))
+  
+#Plotly customization
+style(Lother_int, 
+hovertemplate="Source: %{x}
+Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+  
+```
