@@ -64,7 +64,17 @@ GHG_UK22 <- read_ods(
   range = NULL, 
   row_names = FALSE, #no row names
   strings_as_factors = TRUE) %>% #use factors
-  rename("Subsector" = "TES Subsector") #rename variable
+  rename("Subsector" = "TES Subsector") %>%
+  rename("IPCC_code" = "IPCC Code") %>% #rename variable
+  mutate(subcode = case_when(grepl("Bioenergy crops", Subsector) ~ "a", #create a subcode for LULUCF subsectors
+                           grepl("Cropland mineral soils change", Subsector) ~ "b",
+                           grepl("Forestry", Subsector) ~ "c",
+                           grepl("Grassland mineral soils change", Subsector) ~ "d",
+                           grepl("Peatland", Subsector) ~ "e",
+                           grepl("Settlement", Subsector) ~ "f",
+                           grepl("Other LULUCF", Subsector) ~ "g",
+                           .default = "")) %>%
+  unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
 
 #Create dataframe with only categorization
 GHG_categories <- GHG_UK22[, c(3,6:12)] %>%
@@ -72,8 +82,7 @@ GHG_categories <- GHG_UK22[, c(3,6:12)] %>%
 
 #IPCC code and TES subsectors - for categorization
 GHG_IPCC_TES <- GHG_UK22[, c(3,6,7)] %>%
-  distinct() %>%
-  rename("IPCC_code" = "IPCC Code") #rename variable to match other df
+  distinct() 
 
 # Map loop to download UK Regional data 1990-2021 from the UK National Atmospheric Emissions Inventory
 downloaded2 <- file.exists("GHG_regions.xlsx") #checks if file is downloaded in working directory
@@ -101,7 +110,16 @@ GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
 	by='IPCC_code') %>% #use inner join to combine dataframes by a shared variable
   rename("GHG" = "Pollutant") %>% #rename variable to match UK only csv
   rename("NC_Sector" = "NCFormat") %>% #rename variable
-  rename("TES_Sector" = "TES Sector") #rename variable
+  rename("TES_Sector" = "TES Sector") %>% #rename variable
+  mutate(subcode = case_when(grepl("Bioenergy crops", SourceName) ~ "a", #create a subcode for LULUCF subsectors
+                           grepl("Cropland mineral soils change", Subsector) ~ "b",
+                           grepl("Forestry", Subsector) ~ "c",
+                           grepl("Grassland mineral soils change", Subsector) ~ "d",
+                           grepl("Peatland", Subsector) ~ "e",
+                           grepl("Settlement", Subsector) ~ "f",
+                           grepl("Other LULUCF", Subsector) ~ "g",
+                           .default = "")) %>%
+  unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
 
 #Simplify regional dataset
 GHG_simp <- GHG_regions2 %>%
@@ -117,6 +135,8 @@ GHG_2021 <- GHG_simp %>%
 GHG_2021_joined <- GHG_2021 %>%
   group_by(Sector, Subsector, GHG) %>%
   summarize(Temissions = sum(Temissions, na.rm = TRUE))
+
+
 
 ```
 
@@ -195,9 +215,10 @@ sankey #view plot
 ```{r, eval=FALSE, include=FALSE}
 
 #Plot with Plotly
-sankey3 <- plot_ly(type = "sankey",
+sankey2 <- plot_ly(type = "sankey",
                    domain = list(x =  c(0,1),y =  c(0,1)),
                    orientation = "h",
+                   arrangement="snap", # can also change this to 'fixed'
                    valueformat = ".0f",
                    valuesuffix = "kt CO2 eq.",
       node = list(
@@ -217,7 +238,7 @@ sankey3 <- plot_ly(type = "sankey",
     xaxis = list(showgrid = F, zeroline = F),
     yaxis = list(showgrid = F, zeroline = F))
 
-sankey3
+sankey2
 
 
 ```
@@ -304,6 +325,37 @@ agsankey <- sankeyNetwork(Links = aglinks, Nodes = agnodes,
               iterations = 5)
 
 agsankey
+
+```
+
+```{r, eval=FALSE, include=FALSE}
+
+
+#Plot with Plotly
+agsankey2 <- plot_ly(type = "sankey",
+                   domain = list(x =  c(0,1),y =  c(0,1)),
+                   orientation = "h",
+                   valueformat = ".0f",
+                   valuesuffix = "kt CO2 eq.",
+      node = list(
+        label = agnodes$name,
+        pad = 15,
+        thickness = 20,
+        line = list(color = "black", width = 0.5),
+      link = list(
+        source = aglinks$IDsource,
+        target = aglinks$IDtarget,
+        value = aglinks$value
+        #label = linklist$label
+        ))) %>% 
+  layout(
+    title = "Greenhouse Gas Emissions Per Agriculture Subsector in the UK",
+    font = list(size = 10),
+    xaxis = list(showgrid = F, zeroline = F),
+    yaxis = list(showgrid = F, zeroline = F))
+
+agsankey2
+
 
 ```
 
@@ -685,7 +737,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the bioenergy crops subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the bioenergy crops subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 biocrops <- LULUCF %>%
@@ -714,7 +766,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the cropland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the cropland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 cropsoilchg <- LULUCF %>%
@@ -743,7 +795,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the grassland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the grassland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 grsoilchg <- LULUCF %>%
@@ -772,7 +824,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the forestry subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the forestry subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 forestry <- LULUCF %>%
@@ -801,7 +853,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the peatland subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the peatland subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 peat <- LULUCF %>%
@@ -830,7 +882,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the settlement subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the settlement subsector in 2021 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 settle <- LULUCF %>%
@@ -1026,6 +1078,54 @@ buildsankey <- sankeyNetwork(Links = buildlinks, Nodes = buildnodes,
               iterations = 15)
 
 buildsankey
+
+```
+
+### Domestic transport
+
+```{r, warning=FALSE}
+
+transport <- GHG_regions2 %>%
+  filter(TES_Sector == "Domestic transport") %>% #filter sector
+  filter(EmissionYear == "2021") %>% #filter to only 2021 
+  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
+  summarize(Temissions = sum(Emission, na.rm = TRUE)) 
+transport$IPCC_name <- gsub('_', ' ', transport$IPCC_name) #replace underscores with spaces to make nicer to read
+
+#wide - split GHGs
+transport_wideGHG <- transport %>%
+  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  replace(is.na(.), 0)
+
+```
+
+#### Domestic Transport Sankey Diagram
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+
+#Set up Sankey links dataframe
+transportlinks <- data.frame(source=c(paste0(transport$GHG), paste0(transport$Subsector)), 
+                    target=c(paste0(transport$Subsector), paste0(transport$IPCC_name)),
+                    value=as.numeric(paste0(transport$Temissions)))
+
+#Create nodes df from names in links df
+transportnodes <- data.frame(
+  name=unique(c(as.character(transportlinks$source), 
+  as.character(transportlinks$target))))
+
+#Add ID numbers
+transportlinks$IDsource <- as.numeric(match(transportlinks$source, transportnodes$name)-1)
+transportlinks$IDtarget <- as.numeric(match(transportlinks$target, transportnodes$name)-1)
+
+
+#Plot with networkD3
+transportsankey <- sankeyNetwork(Links = transportlinks, Nodes = transportnodes,
+              Source = "IDsource", Target = "IDtarget",
+              Value = "value", NodeID = "name",
+              units = "kilotonnes CO2 eq.",
+              sinksRight=FALSE, nodePadding = 15,
+              iterations = 15)
+
+transportsankey
 
 ```
 
