@@ -127,25 +127,11 @@ GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
   unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
            
            
-           
-           case_when(Subsector == "Bioenergy crops" ~ "a", #create a subcode for LULUCF subsectors
-                             Subsector == "Cropland mineral soils change" ~ "b",
-                             Subsector == "Forestry" ~ "c",
-                             Subsector == "Grassland mineral soils change" ~ "d",
-                             Subsector == "Peatland" ~ "e",
-                             Subsector == "Settlement" ~ "f",
-                             Subsector == "Other LULUCF" ~ "g",
-                             .default = "")) 
+
+    #mutate(subcode = case_when(grepl("Bioenergy crops", SourceName) ~ "a", #create a subcode for LULUCF subsectors
+    #                       .default = "")) %>%
 
 
-    mutate(subcode = case_when(grepl("Bioenergy crops", SourceName) ~ "a", #create a subcode for LULUCF subsectors
-                           grepl("Cropland mineral soils change", Subsector) ~ "b",
-                           grepl("Forestry", Subsector) ~ "c",
-                           grepl("Grassland mineral soils change", Subsector) ~ "d",
-                           grepl("Peatland", Subsector) ~ "e",
-                           grepl("Settlement", Subsector) ~ "f",
-                           grepl("Other LULUCF", Subsector) ~ "g",
-                           .default = "")) %>%
 
 #Simplify regional dataset
 GHG_simp <- GHG_regions2 %>%
