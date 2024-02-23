@@ -66,15 +66,16 @@ GHG_UK22 <- read_ods(
   strings_as_factors = TRUE) %>% #use factors
   rename("Subsector" = "TES Subsector") %>%
   rename("IPCC_code" = "IPCC Code") %>% #rename variable
-  mutate(subcode = case_when(grepl("Bioenergy crops", Subsector) ~ "a", #create a subcode for LULUCF subsectors
-                           grepl("Cropland mineral soils change", Subsector) ~ "b",
-                           grepl("Forestry", Subsector) ~ "c",
-                           grepl("Grassland mineral soils change", Subsector) ~ "d",
-                           grepl("Peatland", Subsector) ~ "e",
-                           grepl("Settlement", Subsector) ~ "f",
-                           grepl("Other LULUCF", Subsector) ~ "g",
-                           .default = "")) %>%
+  mutate(subcode = case_when(Subsector == "Bioenergy crops" ~ "a", #create a subcode for LULUCF subsectors
+                             Subsector == "Cropland mineral soils change" ~ "b",
+                             Subsector == "Forestry" ~ "c",
+                             Subsector == "Grassland mineral soils change" ~ "d",
+                             Subsector == "Peatland" ~ "e",
+                             Subsector == "Settlement" ~ "f",
+                             Subsector == "Other LULUCF" ~ "g",
+                             .default = "")) %>%
   unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
+
 
 #Create dataframe with only categorization
 GHG_categories <- GHG_UK22[, c(3,6:12)] %>%
@@ -105,13 +106,39 @@ GHG_regions <- read_xlsx(
   .name_repair = "unique" #makes sure all column names not empty or duplicated
 )
 
+GHG_codes <- GHG_regions [, c(5:9)] %>%
+  distinct()
+
 #Add subsector into GHG_regions, match format 
 GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
 	by='IPCC_code') %>% #use inner join to combine dataframes by a shared variable
   rename("GHG" = "Pollutant") %>% #rename variable to match UK only csv
   rename("NC_Sector" = "NCFormat") %>% #rename variable
   rename("TES_Sector" = "TES Sector") %>% #rename variable
-  mutate(subcode = case_when(grepl("Bioenergy crops", SourceName) ~ "a", #create a subcode for LULUCF subsectors
+  mutate(subcode = case_match(Sourcecode, #create a subcode for LULUCF subsectors
+                              742 ~ "a", #bioenergy crops
+                              c(949, 977, 978) ~ "b", #cropland mineral soils change
+                              c(739:741, 743, 745, 760, 824, 1001) ~ "c", #forestry
+                              c(746, 909, 948, 950, 980, 981, 983, 984) ~ "d", #grassland mineral soils change
+                              c(832, 1186, 1187, 1188) ~ "e", #peatland
+                              c(1185, ) ~ "f", #settlement
+                              c() ~ "g", #other
+                              .default = "")) %>%
+  unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
+           
+           
+           
+           case_when(Subsector == "Bioenergy crops" ~ "a", #create a subcode for LULUCF subsectors
+                             Subsector == "Cropland mineral soils change" ~ "b",
+                             Subsector == "Forestry" ~ "c",
+                             Subsector == "Grassland mineral soils change" ~ "d",
+                             Subsector == "Peatland" ~ "e",
+                             Subsector == "Settlement" ~ "f",
+                             Subsector == "Other LULUCF" ~ "g",
+                             .default = "")) 
+
+
+    mutate(subcode = case_when(grepl("Bioenergy crops", SourceName) ~ "a", #create a subcode for LULUCF subsectors
                            grepl("Cropland mineral soils change", Subsector) ~ "b",
                            grepl("Forestry", Subsector) ~ "c",
                            grepl("Grassland mineral soils change", Subsector) ~ "d",
@@ -119,7 +146,6 @@ GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
                            grepl("Settlement", Subsector) ~ "f",
                            grepl("Other LULUCF", Subsector) ~ "g",
                            .default = "")) %>%
-  unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
 
 #Simplify regional dataset
 GHG_simp <- GHG_regions2 %>%
