@@ -107,9 +107,19 @@ GHG_UK22 <- read_ods(
   range = NULL, 
   row_names = FALSE, #no row names
   strings_as_factors = TRUE) %>% #use factors
-  clean_names() #clean names to lowercase, with underscores
-  
-
+  clean_names() %>% #clean column names to lowercase, with underscores
+  separate_wider_delim(source, delim = " - ", #separate source, define delimiter as " - "
+                       names = c("source_1", "source_2", "source_3"), #name new columns
+                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 3
+                       cols_remove = FALSE) %>% #keep original column
+  separate_wider_delim(tes_category, delim = " - ", #separate category, define delimiter as " - "
+                       names = c("category_1", "category_2"), #name new columns
+                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 2
+                       cols_remove = FALSE) %>% #keep original column
+  separate_wider_delim(activity, delim = " - ", #separate activity, define delimiter as " - "
+                       names = c("activity_1", "activity_2"), #name new columns
+                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 2
+                       cols_remove = FALSE) #keep original column
 
 
 #Map loop to download UK Regional data 1990-2022 from the UK National Atmospheric Emissions Inventory
@@ -132,7 +142,11 @@ GHG_regions <- read_xlsx(
   progress = readxl_progress(), #display progress in reading in data
   .name_repair = "unique" #makes sure all column names not empty or duplicated
 ) %>%
-  clean_names() #clean names to lowercase, with underscores
+  clean_names() %>% #clean column names to lowercase, with underscores
+  separate_wider_delim(source_name, delim = " - ", #separate source, define delimiter as " - "
+                       names = c("source_1", "source_2", "source_3"), #name new columns
+                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 3
+                       cols_remove = FALSE) #keep original column
 
 GHG_regions$ipcc_name <- gsub('_', ' ', GHG_regions$ipcc_name) #replace string underscores with spaces
 
@@ -173,17 +187,14 @@ GHG_regions2 <- inner_join(IPCC_TES, GHG_regions,
 
 
 
-#Simplify UK-wide dataset
-GHG_simpUK <- GHG_UK22 %>%
-  filter(year == "2022") %>%
-  group_by(tes_sector, tes_subsector, source, activity, ghg, ghg_grouped) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+#Newest years only 
+#UK-wide dataset
+GHG_UK2022 <- GHG_UK22 %>%
+  filter(year == "2022")
 
-#Simplify regional dataset
-GHG_simp_regions <- GHG_regions2 %>%
-  filter(emission_year == "2021") %>%
-  group_by(tes_sector, tes_subsector, region_name, source_name, ipcc_name, ghg_grouped) %>%
-  summarize(Temissions = sum(emission, na.rm = TRUE))
+#Regional dataset
+GHG_regions2021 <- GHG_regions2 %>%
+  filter(emission_year == "2021")
 
 ```
 
@@ -210,9 +221,9 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in . From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
 
 #Set up Sankey links dataframe - from subsector to sector to GHGs
-links <- data.frame(source=c(paste0(GHG_simpUK$tes_subsector), paste0(GHG_simpUK$tes_sector)), 
-                    target=c(paste0(GHG_simpUK$tes_sector), paste0(GHG_simpUK$ghg_grouped)),
-                    value=as.numeric(paste0(GHG_simpUK$Temissions)))
+links <- data.frame(source=c(paste0(GHG_UK2022$tes_subsector), paste0(GHG_UK2022$tes_sector)), 
+                    target=c(paste0(GHG_UK2022$tes_sector), paste0(GHG_UK2022$ghg_grouped)),
+                    value=as.numeric(paste0(GHG_UK2022$emissions_mt_co2e)))
 
 links <- links[-c(1866:1893),] #remove instances with repeat name
 
@@ -226,9 +237,9 @@ links$IDsource <- as.numeric(match(links$source, nodes$name)-1)
 links$IDtarget <- as.numeric(match(links$target, nodes$name)-1)
 
 #Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
-links2 <- data.frame(source=c(paste0(GHG_simpUK$ghg_grouped), paste0(GHG_simpUK$tes_sector)), 
-                    target=c(paste0(GHG_simpUK$tes_sector), paste0(GHG_simpUK$tes_subsector)),
-                    value=as.numeric(paste0(GHG_simpUK$Temissions))) 
+links2 <- data.frame(source=c(paste0(GHG_UK2022$ghg_grouped), paste0(GHG_UK2022$tes_sector)), 
+                    target=c(paste0(GHG_UK2022$tes_sector), paste0(GHG_UK2022$tes_subsector)),
+                    value=as.numeric(paste0(GHG_UK2022$emissions_mt_co2e))) 
 
 links2 <- links2[-c(3759:3786),] #remove instances with repeat name
 
@@ -246,7 +257,7 @@ sankey <- sankeyNetwork(Links = links2, Nodes = nodes2, #dataframes to use
               Source = "IDsource", Target = "IDtarget", #numeric identifiers of variables
               Value = "value", #numeric weights
 							NodeID = "name", #node labels
-              units = "kt CO2 eq.", #label units
+              units = "Megatonnes CO2 eq.", #label units
 							#colourScale = colorJS,
 							fontSize = 7,
               sinksRight=FALSE, #justify last variables right if true
@@ -331,26 +342,26 @@ CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y val
 
 ```{r, warning=FALSE}
 
-ag_df <- GHG_UK22 %>%
+ag_df <- GHG_UK2022 %>%
   filter(tes_sector == "Agriculture") %>% #filter sector
-  filter(year == "2022") %>% #filter to only  
-  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+  replace(is.na(.), "")
+  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #wide - split GHGs
 agwideGHG <- ag_df %>%
-  pivot_wider(names_from = ghg_grouped, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg_grouped, values_from=emissions_mt_co2e) %>%
   replace(is.na(.), 0)
 
 ```
 
 #### Agriculture Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in . From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2022."}
 
 #Set up Sankey links dataframe
-aglinks <- data.frame(source=c(paste0(ag_df$tes_subsector)), 
-                    target=c(paste0(ag_df$ghg_grouped)),
-                    value=as.numeric(paste0(ag_df$Temissions)))
+aglinks <- data.frame(source=c(paste0(ag_df$ghg_grouped), paste0(ag_df$tes_subsector), paste0(ag_df$category_2)), 
+                    target=c(paste0(ag_df$tes_subsector), paste0(ag_df$category_2), paste0(ag_df$category_1)),
+                    value=as.numeric(paste0(ag_df$emissions_mt_co2e)))
 
 #Create nodes df from names in links df
 agnodes <- data.frame(
@@ -366,7 +377,7 @@ aglinks$IDtarget <- as.numeric(match(aglinks$target, agnodes$name)-1)
 agsankey <- sankeyNetwork(Links = aglinks, Nodes = agnodes,
               Source = "IDsource", Target = "IDtarget",
               Value = "value", NodeID = "name",
-              units = "kilotonnes CO2 eq.",
+              units = "Megatonnes CO2 eq.",
               sinksRight=FALSE, nodePadding = 8,
               iterations = 5)
 
@@ -410,8 +421,8 @@ agsankey2
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's agriculture greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
 
 agpie <- ag_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
-  add_pie(labels = ~ghg, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
-  add_pie(labels = ~tes_subsector, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
+  add_pie(labels = ~ghg, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
+  add_pie(labels = ~tes_subsector, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
   layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
          #annotations = list(list(x = 0.20 , y = 1, text = "Emissions by Greenhouse Gas Identity"), 
           #                  list(x = 0.80 , y = 1, text = "Emissions by Subsector")),
@@ -420,7 +431,7 @@ agpie <- ag_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal
                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) 
 
 style(agpie, hovertemplate="%{label} 
-      Emissions: %{value:,.4r} kt CO2 eq.
+      Emissions: %{value:,.4r} Mt CO2 eq.
       %{percent}
       <extra></extra>")
 
@@ -430,11 +441,11 @@ style(agpie, hovertemplate="%{label}
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agriculture sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by GHG
-agbar <- ggplot(ag_df, aes(x = tes_subsector, y = Temissions, fill = ghg)) + 
+agbar <- ggplot(ag_df, aes(x = tes_subsector, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  xlab("Subsector") + ylab("Emissions (kt CO2 eq.)") #define/change X and Y labels
+  xlab("Subsector") + ylab("Emissions (Mt CO2 eq.)") #define/change X and Y labels
 
 #Make interactive with Plotly
 agbar_int <- ggplotly(agbar) %>% #convert to interactive graph
@@ -451,7 +462,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agriculture sector in 2022 by category, colored by subsector."}
 
 #Bar plot by source
-agsource <- ggplot(ag_df, aes(x = tes_category, y = Temissions, fill = tes_subsector)) + 
+agsource <- ggplot(ag_df, aes(x = category_1, y = emissions_mt_co2e, fill = tes_subsector)) + 
   geom_bar(stat = "identity", width = 0.7, position = "dodge") + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -475,24 +486,27 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in  by IPCC code, colored by subsector and grouped by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in  by category, colored by subsector and grouped by greenhouse gas identity."}
 
 #Plot GHGs into side-by-side plots with Plotly
 ag_CO2 <- agwideGHG %>% 
-  plot_ly(x = ~tes_category, y = ~CO2, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector) %>%
+  plot_ly(x = ~tes_category, y = ~CO2, color = ~tes_subsector, type = 'bar', 
+          legendgroup = ~tes_subsector) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 ag_CH4 <- agwideGHG %>% 
-  plot_ly(x = ~tes_category, y = ~CH4, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector, showlegend = F) %>%
+  plot_ly(x = ~tes_category, y = ~CH4, color = ~tes_subsector, type = 'bar', 
+          legendgroup = ~tes_subsector, showlegend = F) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 ag_N2O <- agwideGHG %>% 
-  plot_ly(x = ~tes_category, y = ~N2O, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector, showlegend = F) %>%
+  plot_ly(x = ~tes_category, y = ~N2O, color = ~tes_subsector, type = 'bar', 
+          legendgroup = ~tes_subsector, showlegend = F) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 ag_GHGs <- subplot(ag_CO2, ag_CH4, ag_N2O, shareY = FALSE, margin = 0.05) %>%
   layout(title = list(text = "UK's Agriculture Emissions in 2022", pad = list(t=50, b = 50)),
-         yaxis = list(title = 'Emissions (kt CO2 equivalents)'), 
+         yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
          plot_bgcolor='#e5ecf6',
          legend = list(orientation = "h", title=list(text='<b>Subsector</b>')),
          annotations = list(list(
@@ -527,7 +541,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot combustion, stacked by GHG
 agcom <- ag_df %>%
   filter(tes_subsector == "Agricultural combustion") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -556,7 +570,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot soils, stacked by GHG
 agsoil <- ag_df %>%
   filter(tes_subsector == "Agricultural soils") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -586,7 +600,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot livestock, stacked by GHG
 agls <- ag_df %>%
   filter(tes_subsector == "Livestock") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -615,7 +629,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot other ag, stacked by GHG
 agother <- ag_df %>%
   filter(tes_subsector == "Other agriculture") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -646,26 +660,26 @@ Note - possibly some replicate data or miscategorization - need to clean up the 
 
 ```{r, warning=FALSE}
 
-LULUCF <- GHG_UK22 %>%
+LULUCF <- GHG_UK2022 %>%
   filter(tes_sector == "LULUCF") %>% #filter sector
-  filter(year == "2022") %>% #filter to only  
-  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+  replace(is.na(.), " ")
+  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #wide - split GHGs
 LULUCFwideGHG <- LULUCF %>%
-  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
   replace(is.na(.), 0)
 
 ```
 
 #### LULUCF Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2022."}
 
 #Set up Sankey links dataframe
-LULUCFlinks <- data.frame(source=c(paste0(LULUCF$ghg), paste0(LULUCF$tes_subsector)), 
-                    target=c(paste0(LULUCF$tes_subsector), paste0(LULUCF$tes_category)),
-                    value=as.numeric(paste0(LULUCF$Temissions)))
+LULUCFlinks <- data.frame(source=c(paste0(LULUCF$ghg)), 
+                    target=c(paste0(LULUCF$tes_subsector)),
+                    value=as.numeric(paste0(LULUCF$emissions_mt_co2e)))
 
 #Create nodes df from names in links df
 LULUCFnodes <- data.frame(
@@ -695,7 +709,7 @@ LULUCFsankey
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by GHG
-LULUCFbar <- ggplot(LULUCF, aes(x = tes_subsector, y = Temissions, fill = ghg)) + 
+LULUCFbar <- ggplot(LULUCF, aes(x = tes_subsector, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -720,7 +734,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 #Bar plot by source with Plotly
 LULUCFsource <- LULUCFwideGHG %>% 
-  plot_ly(x = ~tes_category, y = ~CO2, type = 'bar', name = 'CO2') %>% 
+  plot_ly(x = ~category_1, y = ~CO2, type = 'bar', name = 'CO2') %>% 
   add_trace(y = ~CH4, name = 'CH4') %>%
   add_trace(y = ~N2O, name = 'N2O') %>%
   layout(barmode = 'stack', 
@@ -787,7 +801,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot subsector, stacked by GHG
 biocrops <- LULUCF %>%
   filter(tes_subsector == "Bioenergy crops") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -816,7 +830,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot subsector, stacked by GHG
 cropsoilchg <- LULUCF %>%
   filter(tes_subsector == "Cropland mineral soils change") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -845,7 +859,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot subsector, stacked by GHG
 grsoilchg <- LULUCF %>%
   filter(tes_subsector == "Grassland mineral soils change") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -874,7 +888,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot subsector, stacked by GHG
 forestry <- LULUCF %>%
   filter(tes_subsector == "Forestry") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -903,7 +917,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot subsector, stacked by GHG
 peat <- LULUCF %>%
   filter(tes_subsector == "Peatland") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -932,7 +946,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot subsector, stacked by GHG
 settle <- LULUCF %>%
   filter(tes_subsector == "Settlement") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -961,7 +975,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 #Bar plot other ag, stacked by GHG
 Lother <- LULUCF %>%
   filter(tes_subsector == "Other LULUCF") %>%
-ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
+ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -989,15 +1003,15 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```{r, warning=FALSE}
 
-waste_df <- GHG_UK22 %>%
+waste_df <- GHG_UK2022 %>%
   filter(tes_sector == "Waste") %>% #filter sector
-  filter(year == "2022") %>% #filter to only  
-  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+  replace(is.na(.), "")
+  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #wide - split GHGs
 waste_wideGHG <- waste_df %>%
-  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
   replace(is.na(.), 0)
 
 ```
@@ -1008,7 +1022,7 @@ waste_wideGHG <- waste_df %>%
 #Set up Sankey links dataframe
 wastelinks <- data.frame(source=c(paste0(waste_df$ghg), paste0(waste_df$tes_subsector)), 
                     target=c(paste0(waste_df$tes_subsector), paste0(waste_df$tes_category)),
-                    value=as.numeric(paste0(waste_df$Temissions)))
+                    value=as.numeric(paste0(waste_df$emissions_mt_co2e)))
 
 #Create nodes df from names in links df
 wastenodes <- data.frame(
@@ -1037,8 +1051,8 @@ wastesankey
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's waste greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
 
 wastepie <- waste_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
-  add_pie(labels = ~ghg, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
-  add_pie(labels = ~tes_category, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
+  add_pie(labels = ~ghg, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
+  add_pie(labels = ~tes_category, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
   layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
          #annotations = list(list(x = 0.20 , y = 1, text = "Emissions by Greenhouse Gas Identity"), 
           #                  list(x = 0.80 , y = 1, text = "Emissions by Subsector")),
@@ -1056,7 +1070,7 @@ style(wastepie, hovertemplate="%{label}
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by ghg
-wastebar <- ggplot(waste_df, aes(x = tes_category, y = Temissions, fill = ghg)) + 
+wastebar <- ggplot(waste_df, aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -1083,13 +1097,13 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 build_df <- GHG_UK22 %>%
   filter(tes_sector == "Buildings and product uses") %>% #filter sector
-  filter(year == "2022") %>% #filter to only  
-  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
+  replace(is.na(.), "")
+  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
 
 #wide - split GHGs
 build_wideGHG <- build_df %>%
-  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
   replace(is.na(.), 0)
 
 ```
@@ -1100,7 +1114,7 @@ build_wideGHG <- build_df %>%
 #Set up Sankey links dataframe
 buildlinks <- data.frame(source=c(paste0(build_df$ghg), paste0(build_df$tes_subsector)), 
                     target=c(paste0(build_df$tes_subsector), paste0(build_df$tes_category)),
-                    value=as.numeric(paste0(build_df$Temissions)))
+                    value=as.numeric(paste0(build_df$emissions_mt_co2e)))
 
 #Create nodes df from names in links df
 buildnodes <- data.frame(
@@ -1130,13 +1144,13 @@ buildsankey
 
 transport <- GHG_UK22 %>%
   filter(tes_sector == "Domestic transport") %>% #filter sector
-  filter(year == "2022") %>% #filter to only  
-  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
+  replace(is.na(.), "")
+  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
 
 #wide - split GHGs
 transport_wideGHG <- transport %>%
-  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
   replace(is.na(.), 0)
 
 ```
@@ -1147,7 +1161,7 @@ transport_wideGHG <- transport %>%
 #Set up Sankey links dataframe
 transportlinks <- data.frame(source=c(paste0(transport$ghg), paste0(transport$tes_subsector)), 
                     target=c(paste0(transport$tes_subsector), paste0(transport$tes_category)),
-                    value=as.numeric(paste0(transport$Temissions)))
+                    value=as.numeric(paste0(transport$emissions_mt_co2e)))
 
 #Create nodes df from names in links df
 transportnodes <- data.frame(
