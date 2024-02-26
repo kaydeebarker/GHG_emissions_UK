@@ -41,18 +41,60 @@ usethis::edit_r_environ() #set environment with Github token for API
 
 Introduction to the inventory, with links
 kilotonnes of CO2 equivalents
+Territorial Emissions Statistics (TES) sectors and subsectors used, as they are replacing National Communications (NC) sectors and subsectors in all reports (https://www.gov.uk/government/statistics/final-uk-greenhouse-gas-emissions-national-statistics-1990-to-2022)
 
 
 ```{r, warning=FALSE}
 
-# Map loop to download UK 2022 data from the UK Department for Energy Security and Net Zero
+#Map loop to download UK sector mapping data
+downloaded <- file.exists("UKsectors.xlsx") #checks if file is downloaded in working directory
+if(downloaded != T){ #if downloaded is not true
+  map2("https://assets.publishing.service.gov.uk/media/65c0d392c4319100141a455d/ghg-statistics-tes-to-nc-sector-mapping-2022.xlsx", #update this link when new data available
+                         "UKsectors.xlsx", download.file)} #else{print('data downloaded')} #name and download or print
+
+#Read in excel file
+UKsectors <- read_xlsx(
+  "UKsectors.xlsx", #excel file from current working directory
+  sheet = "Table 1", #define tab/sheet to read
+  col_names = FALSE, #the format of this excel file doesn't allow headers to be column names
+  col_types = NULL, #guess data types
+  na = "", #treat blank cells as NA
+  trim_ws = TRUE, #trim any whitespace/unused columns and rows
+  skip = 6, #skip 6 rows to get to pivot table data
+  n_max = Inf, #set maximum number of rows to include
+  guess_max = min(1000, Inf), #how many rows to use to guess data types
+  progress = readxl_progress(), #display progress in reading in data
+  .name_repair = "unique" #makes sure all column names not empty or duplicated
+)
+
+#Assign headers/column names for UK sectors dataframe
+colnames(UKsectors) <- c("IPCC_code", "Source", "Activity", "NC_Sector", "NC_Subsector", "NC_Category", 
+                         "TES_Sector", "TES_Subsector", "TES_Category") 
+
+#Assign more specific codes than IPCC codes
+UKsectors <- UKsectors %>%
+  mutate(subcode = case_when(TES_Subsector == "Bioenergy crops" ~ "a", #create a subcode for LULUCF subsectors
+                             TES_Subsector == "Cropland mineral soils change" ~ "b",
+                             TES_Subsector == "Forestry" ~ "c",
+                             TES_Subsector == "Grassland mineral soils change" ~ "d",
+                             TES_Subsector == "Peatland" ~ "e",
+                             TES_Subsector == "Settlement" ~ "f",
+                             TES_Subsector == "Other LULUCF" ~ "g",
+                             .default = "")) %>%
+  unite('IPCC_code2', c(IPCC_code, subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
+
+
+IPCC_TES <- UKsectors[, c(1,2,8,9,10)] #dataframe with just IPCC codes and TES sectors, subsectors, and categories
+
+
+
+#Map loop to download UK 2022 data from the UK Department for Energy Security and Net Zero
 downloaded <- file.exists("UKGHG_2022.ods") #checks if file is downloaded in working directory
 if(downloaded != T){ #if downloaded is not true
   map2("https://assets.publishing.service.gov.uk/media/65c0d54663a23d000dc821ca/final-greenhouse-gas-emissions-2022-by-source-dataset.ods", #update this link when new data available
                          "UKGHG_2022.ods", download.file)} #else{print('data downloaded')} #name and download or print
 
-
-#Read in UK 2022 data from the UK Department for Energy Security and Net Zero
+#Read in ods file
 GHG_UK22 <- read_ods(
   path = "UKGHG_2022.ods",
   sheet = 1, #define tab/sheet to read
@@ -64,28 +106,16 @@ GHG_UK22 <- read_ods(
   range = NULL, 
   row_names = FALSE, #no row names
   strings_as_factors = TRUE) %>% #use factors
-  rename("Subsector" = "TES Subsector") %>%
-  rename("IPCC_code" = "IPCC Code") %>% #rename variable
-  mutate(subcode = case_when(Subsector == "Bioenergy crops" ~ "a", #create a subcode for LULUCF subsectors
-                             Subsector == "Cropland mineral soils change" ~ "b",
-                             Subsector == "Forestry" ~ "c",
-                             Subsector == "Grassland mineral soils change" ~ "d",
-                             Subsector == "Peatland" ~ "e",
-                             Subsector == "Settlement" ~ "f",
-                             Subsector == "Other LULUCF" ~ "g",
-                             .default = "")) %>%
-  unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
+  rename("TES_Sector" = "TES Sector") %>% #rename variables for easier coding
+  rename("TES_Subsector" = "TES Subsector") %>%
+  rename("IPCC_code" = "IPCC Code") %>%
+  rename("GHG_group" = "GHG Grouped") %>%
+  rename("Emissions" = "Emissions (MtCO2e)")
+  
 
 
-#Create dataframe with only categorization
-GHG_categories <- GHG_UK22[, c(3,6:12)] %>%
-  distinct() 
 
-#IPCC code and TES subsectors - for categorization
-GHG_IPCC_TES <- GHG_UK22[, c(3,6,7)] %>%
-  distinct() 
-
-# Map loop to download UK Regional data 1990-2021 from the UK National Atmospheric Emissions Inventory
+#Map loop to download UK Regional data 1990-2021 from the UK National Atmospheric Emissions Inventory
 downloaded2 <- file.exists("GHG_regions.xlsx") #checks if file is downloaded in working directory
 if(downloaded2 != T){ #if downloaded is not true
   map2("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2021_Final_v3.1.xlsx", #update this link when new data available
@@ -104,49 +134,57 @@ GHG_regions <- read_xlsx(
   guess_max = min(1000, Inf), #how many rows to use to guess data types
   progress = readxl_progress(), #display progress in reading in data
   .name_repair = "unique" #makes sure all column names not empty or duplicated
-)
+) 
+GHG_regions$IPCC_name <- gsub('_', ' ', GHG_regions$IPCC_name) #replace underscores with spaces to make nicer to read
 
+#Look at distinct instances of codes and categories in regional dataset
 GHG_codes <- GHG_regions [, c(5:9)] %>%
   distinct()
 
-#Add subsector into GHG_regions, match format 
-GHG_regions2 <- inner_join(GHG_IPCC_TES, GHG_regions,
-	by='IPCC_code') %>% #use inner join to combine dataframes by a shared variable
-  rename("GHG" = "Pollutant") %>% #rename variable to match UK only csv
-  rename("NC_Sector" = "NCFormat") %>% #rename variable
-  rename("TES_Sector" = "TES Sector") %>% #rename variable
-  mutate(subcode = case_match(Sourcecode, #create a subcode for LULUCF subsectors
-                              742 ~ "a", #bioenergy crops
-                              c(949, 977, 978) ~ "b", #cropland mineral soils change
-                              c(739:741, 743, 745, 760, 824, 1001) ~ "c", #forestry
-                              c(746, 909, 948, 950, 980, 981, 983, 984) ~ "d", #grassland mineral soils change
-                              c(832, 1186, 1187, 1188) ~ "e", #peatland
-                              c(1185, ) ~ "f", #settlement
-                              c() ~ "g", #other
+#Assign more specific codes than IPCC codes
+#LULUCF TES Subsectors search strings
+Bioenergy <- c("Bioenergy crops", "Miscanthus", "coppice")
+Cropland <- c("Remaining Cropland", "converted to Cropland")
+Forestry <- c("remaining Forest Land", "converted to Forest Land", "converted from forest land", "Harvested Wood")
+Grassland <- c("Remaining Grassland", "converted to Grassland")
+Peatland <- c("drain", "wet", "peat")
+Settlement <- c("converted to settlement")
+O_LULUCF <- c("Biomass Burning","carbon stock change")
+
+#Assign codes from strings
+GHG_regions <- GHG_regions %>%
+  mutate(subcode = case_when(grepl(paste(Bioenergy, collapse='|'), SourceName, ignore.case = TRUE) ~ "a", #for LULUCF
+                             grepl(paste(Cropland, collapse='|'), SourceName, ignore.case = TRUE) ~ "b",
+                             grepl(paste(Forestry, collapse='|'), SourceName, ignore.case = TRUE) ~ "c",
+                             grepl(paste(Grassland, collapse='|'), SourceName, ignore.case = TRUE) ~ "d",
+                             grepl(paste(Peatland, collapse='|'), SourceName, ignore.case = TRUE) ~ "e",
+                             grepl(paste(Settlement, collapse='|'), SourceName, ignore.case = TRUE) ~ "f",
+                             grepl(paste(O_LULUCF, collapse='|'), SourceName, ignore.case = TRUE) ~ "g", 
                               .default = "")) %>%
-  unite('IPCC_code2', c(IPCC_code,subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
-           
-           
-
-    #mutate(subcode = case_when(grepl("Bioenergy crops", SourceName) ~ "a", #create a subcode for LULUCF subsectors
-    #                       .default = "")) %>%
+  unite('IPCC_code2', c(IPCC_code, subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
 
 
+
+#Add subsector into GHG_regions, match format, add more specific IPCC codes to join by
+GHG_regions2 <- inner_join(IPCC_TES, GHG_regions,
+	by=c('IPCC_code2', 'IPCC_code')) %>% #use inner join to combine dataframes by shared variables
+  rename("GHG" = "Pollutant") %>% #rename variable to match UK only csv
+  rename("NC_Sector" = "NCFormat") #rename variable
+
+
+
+
+#Simplify UK-wide dataset
+GHG_simpUK <- GHG_UK22 %>%
+  filter(Year == "2022") %>%
+  group_by(TES_Sector, TES_Subsector, Source, Activity, GHG, GHG_group) %>%
+  summarize(Temissions = sum(Emissions, na.rm = TRUE))
 
 #Simplify regional dataset
-GHG_simp <- GHG_regions2 %>%
-  group_by(EmissionYear, TES_Sector, Subsector, RegionName, GHG) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE)) %>%
-  rename("Sector" = "TES_Sector")
-
-#2021 only
-GHG_2021 <- GHG_simp %>%
-    filter(EmissionYear == "2021") #filter to only 2021
-
-#Grouped into all of UK
-GHG_2021_joined <- GHG_2021 %>%
-  group_by(Sector, Subsector, GHG) %>%
-  summarize(Temissions = sum(Temissions, na.rm = TRUE))
+GHG_simp_regions <- GHG_regions2 %>%
+  filter(EmissionYear == "2021") %>%
+  group_by(TES_Sector, TES_Subsector, RegionName, SourceName, IPCC_name, GHG) %>%
+  summarize(Temissions = sum(Emission, na.rm = TRUE))
 
 
 
@@ -174,12 +212,12 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2021. From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
 
-#Set up Sankey links dataframe - from sector to subsector to GHGs
-links <- data.frame(source=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)), 
-                    target=c(paste0(GHG_2021_joined$Subsector), paste0(GHG_2021_joined$GHG)),
-                    value=as.numeric(paste0(GHG_2021_joined$Temissions)))
+#Set up Sankey links dataframe - from subsector to sector to GHGs
+links <- data.frame(source=c(paste0(GHG_simpUK$TES_Subsector), paste0(GHG_simpUK$TES_Sector)), 
+                    target=c(paste0(GHG_simpUK$TES_Sector), paste0(GHG_simpUK$GHG)),
+                    value=as.numeric(paste0(GHG_simpUK$Temissions)))
 
-links <- links[-c(83:85),] #remove instances with repeat name
+links <- links[-c(1866:1893),] #remove instances with repeat name
 
 #Create nodes df from names in links df
 nodes <- data.frame(
@@ -191,11 +229,11 @@ links$IDsource <- as.numeric(match(links$source, nodes$name)-1)
 links$IDtarget <- as.numeric(match(links$target, nodes$name)-1)
 
 #Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
-links2 <- data.frame(source=c(paste0(GHG_2021_joined$GHG), paste0(GHG_2021_joined$Sector)), 
-                    target=c(paste0(GHG_2021_joined$Sector), paste0(GHG_2021_joined$Subsector)),
-                    value=as.numeric(paste0(GHG_2021_joined$Temissions))) 
+links2 <- data.frame(source=c(paste0(GHG_simpUK$GHG_group), paste0(GHG_simpUK$TES_Sector)), 
+                    target=c(paste0(GHG_simpUK$TES_Sector), paste0(GHG_simpUK$TES_Subsector)),
+                    value=as.numeric(paste0(GHG_simpUK$Temissions))) 
 
-links2 <- links2[-c(168:170),] #remove instances with repeat name
+links2 <- links2[-c(3759:3786),] #remove instances with repeat name
 
 #Create nodes df from names in links df
 nodes2 <- data.frame(
@@ -212,7 +250,7 @@ sankey <- sankeyNetwork(Links = links2, Nodes = nodes2, #dataframes to use
               Value = "value", #numeric weights
 							NodeID = "name", #node labels
               units = "kt CO2 eq.", #label units
-							colourScale = colorJS,
+							#colourScale = colorJS,
 							fontSize = 7,
               sinksRight=FALSE, #justify last variables right if true
 							nodePadding = 8, #vertical space between nodes
@@ -261,11 +299,11 @@ sankey2
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK over time, by sector."}
 
 #Plot time series
-Sect_time <- GHG_regions2 %>%
-  group_by(EmissionYear, TES_Sector) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE)) %>%
+Sect_time <- GHG_UK22 %>%
+  group_by(Year, TES_Sector) %>%
+  summarize(Temissions = sum(Emissions, na.rm = TRUE)) %>%
   rename("Sector" = "TES_Sector") %>%
-ggplot(aes(x=as.numeric(EmissionYear), y=Temissions, color=Sector)) +
+ggplot(aes(x=as.numeric(Year), y=Temissions, color=Sector)) +
   geom_line() +
   xlab("") + ylab("Greenhouse Gas Emissions (kilotonnes CO2 eq.)") +
   ggtitle("Greenhouse Gas Emissions of the UK per Sector Over Time") +
