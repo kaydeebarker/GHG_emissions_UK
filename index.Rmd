@@ -23,6 +23,7 @@ library(readODS) #read ods files
 library(readxl) #reads excel files
 library(tidyverse) #Tidy packages
 library(dplyr) #lots of functions - data manipulation
+library(janitor) #helps with data cleaning
 library(usethis) #look at and apply settings to Github actions
 library(ggplot2) #pretty plots
 library(ggthemes) #themes for ggplot
@@ -33,7 +34,7 @@ library(plotly) #interactive web graphs
 library(networkD3) #interactive web network graphs
 library(flipPlots) #plots (install with Github)
 
-usethis::edit_r_environ() #set environment with Github token for API
+#usethis::edit_r_environ() #set environment with Github token for API
 
 ```
 
@@ -65,23 +66,23 @@ UKsectors <- read_xlsx(
   guess_max = min(1000, Inf), #how many rows to use to guess data types
   progress = readxl_progress(), #display progress in reading in data
   .name_repair = "unique" #makes sure all column names not empty or duplicated
-)
+) 
 
-#Assign headers/column names for UK sectors dataframe
-colnames(UKsectors) <- c("IPCC_code", "Source", "Activity", "NC_Sector", "NC_Subsector", "NC_Category", 
-                         "TES_Sector", "TES_Subsector", "TES_Category") 
+#Assign headers/column names for UK sectors dataframe (doesn't import with headers)
+colnames(UKsectors) <- c("ipcc_code", "source", "activity", "nc_sector", "nc_subsector", "nc_category", 
+                         "tes_sector", "tes_subsector", "tes_category") 
 
 #Assign more specific codes than IPCC codes
 UKsectors <- UKsectors %>%
-  mutate(subcode = case_when(TES_Subsector == "Bioenergy crops" ~ "a", #create a subcode for LULUCF subsectors
-                             TES_Subsector == "Cropland mineral soils change" ~ "b",
-                             TES_Subsector == "Forestry" ~ "c",
-                             TES_Subsector == "Grassland mineral soils change" ~ "d",
-                             TES_Subsector == "Peatland" ~ "e",
-                             TES_Subsector == "Settlement" ~ "f",
-                             TES_Subsector == "Other LULUCF" ~ "g",
+  mutate(subcode = case_when(tes_subsector == "Bioenergy crops" ~ "a", #create a subcode for LULUCF subsectors
+                             tes_subsector == "Cropland mineral soils change" ~ "b",
+                             tes_subsector == "Forestry" ~ "c",
+                             tes_subsector == "Grassland mineral soils change" ~ "d",
+                             tes_subsector == "Peatland" ~ "e",
+                             tes_subsector == "Settlement" ~ "f",
+                             tes_subsector == "Other LULUCF" ~ "g",
                              .default = "")) %>%
-  unite('IPCC_code2', c(IPCC_code, subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
+  unite('ipcc_code2', c(ipcc_code, subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
 
 
 IPCC_TES <- UKsectors[, c(1,2,8,9,10)] #dataframe with just IPCC codes and TES sectors, subsectors, and categories
@@ -106,19 +107,15 @@ GHG_UK22 <- read_ods(
   range = NULL, 
   row_names = FALSE, #no row names
   strings_as_factors = TRUE) %>% #use factors
-  rename("TES_Sector" = "TES Sector") %>% #rename variables for easier coding
-  rename("TES_Subsector" = "TES Subsector") %>%
-  rename("IPCC_code" = "IPCC Code") %>%
-  rename("GHG_group" = "GHG Grouped") %>%
-  rename("Emissions" = "Emissions (MtCO2e)")
+  clean_names() #clean names to lowercase, with underscores
   
 
 
 
-#Map loop to download UK Regional data 1990-2021 from the UK National Atmospheric Emissions Inventory
+#Map loop to download UK Regional data 1990-2022 from the UK National Atmospheric Emissions Inventory
 downloaded2 <- file.exists("GHG_regions.xlsx") #checks if file is downloaded in working directory
 if(downloaded2 != T){ #if downloaded is not true
-  map2("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2021_Final_v3.1.xlsx", #update this link when new data available
+  map2("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2022_Final_v3.1.xlsx", #update this link when new data available
                         "GHG_regions.xlsx", download.file)} #else{print('data downloaded')} #name and download or print
 
 #Read in excel file, by source, with region
@@ -134,8 +131,10 @@ GHG_regions <- read_xlsx(
   guess_max = min(1000, Inf), #how many rows to use to guess data types
   progress = readxl_progress(), #display progress in reading in data
   .name_repair = "unique" #makes sure all column names not empty or duplicated
-) 
-GHG_regions$IPCC_name <- gsub('_', ' ', GHG_regions$IPCC_name) #replace underscores with spaces to make nicer to read
+) %>%
+  clean_names() #clean names to lowercase, with underscores
+
+GHG_regions$ipcc_name <- gsub('_', ' ', GHG_regions$ipcc_name) #replace string underscores with spaces
 
 #Look at distinct instances of codes and categories in regional dataset
 GHG_codes <- GHG_regions [, c(5:9)] %>%
@@ -153,40 +152,38 @@ O_LULUCF <- c("Biomass Burning","carbon stock change")
 
 #Assign codes from strings
 GHG_regions <- GHG_regions %>%
-  mutate(subcode = case_when(grepl(paste(Bioenergy, collapse='|'), SourceName, ignore.case = TRUE) ~ "a", #for LULUCF
-                             grepl(paste(Cropland, collapse='|'), SourceName, ignore.case = TRUE) ~ "b",
-                             grepl(paste(Forestry, collapse='|'), SourceName, ignore.case = TRUE) ~ "c",
-                             grepl(paste(Grassland, collapse='|'), SourceName, ignore.case = TRUE) ~ "d",
-                             grepl(paste(Peatland, collapse='|'), SourceName, ignore.case = TRUE) ~ "e",
-                             grepl(paste(Settlement, collapse='|'), SourceName, ignore.case = TRUE) ~ "f",
-                             grepl(paste(O_LULUCF, collapse='|'), SourceName, ignore.case = TRUE) ~ "g", 
+  mutate(subcode = case_when(grepl(paste(Bioenergy, collapse='|'), source_name, ignore.case = TRUE) ~ "a", #for LULUCF
+                             grepl(paste(Cropland, collapse='|'), source_name, ignore.case = TRUE) ~ "b",
+                             grepl(paste(Forestry, collapse='|'), source_name, ignore.case = TRUE) ~ "c",
+                             grepl(paste(Grassland, collapse='|'), source_name, ignore.case = TRUE) ~ "d",
+                             grepl(paste(Peatland, collapse='|'), source_name, ignore.case = TRUE) ~ "e",
+                             grepl(paste(Settlement, collapse='|'), source_name, ignore.case = TRUE) ~ "f",
+                             grepl(paste(O_LULUCF, collapse='|'), source_name, ignore.case = TRUE) ~ "g", 
                               .default = "")) %>%
-  unite('IPCC_code2', c(IPCC_code, subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
+  unite('ipcc_code2', c(ipcc_code, subcode), remove = FALSE, sep = "_") #combine IPCC code with subcode
 
 
 
 #Add subsector into GHG_regions, match format, add more specific IPCC codes to join by
 GHG_regions2 <- inner_join(IPCC_TES, GHG_regions,
-	by=c('IPCC_code2', 'IPCC_code')) %>% #use inner join to combine dataframes by shared variables
-  rename("GHG" = "Pollutant") %>% #rename variable to match UK only csv
-  rename("NC_Sector" = "NCFormat") #rename variable
+	by=c("ipcc_code2", "ipcc_code")) %>% #use inner join to combine dataframes by shared variables
+  rename("ghg_grouped" = "pollutant") %>% #rename variable to match UK only csv
+  rename("nc_sector" = "nc_format") #rename variable
 
 
 
 
 #Simplify UK-wide dataset
 GHG_simpUK <- GHG_UK22 %>%
-  filter(Year == "2022") %>%
-  group_by(TES_Sector, TES_Subsector, Source, Activity, GHG, GHG_group) %>%
-  summarize(Temissions = sum(Emissions, na.rm = TRUE))
+  filter(year == "2022") %>%
+  group_by(tes_sector, tes_subsector, source, activity, ghg, ghg_grouped) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #Simplify regional dataset
 GHG_simp_regions <- GHG_regions2 %>%
-  filter(EmissionYear == "2021") %>%
-  group_by(TES_Sector, TES_Subsector, RegionName, SourceName, IPCC_name, GHG) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE))
-
-
+  filter(emission_year == "2021") %>%
+  group_by(tes_sector, tes_subsector, region_name, source_name, ipcc_name, ghg_grouped) %>%
+  summarize(Temissions = sum(emission, na.rm = TRUE))
 
 ```
 
@@ -210,11 +207,11 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 
 ### Sankey Diagram
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2021. From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in . From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
 
 #Set up Sankey links dataframe - from subsector to sector to GHGs
-links <- data.frame(source=c(paste0(GHG_simpUK$TES_Subsector), paste0(GHG_simpUK$TES_Sector)), 
-                    target=c(paste0(GHG_simpUK$TES_Sector), paste0(GHG_simpUK$GHG)),
+links <- data.frame(source=c(paste0(GHG_simpUK$tes_subsector), paste0(GHG_simpUK$tes_sector)), 
+                    target=c(paste0(GHG_simpUK$tes_sector), paste0(GHG_simpUK$ghg_grouped)),
                     value=as.numeric(paste0(GHG_simpUK$Temissions)))
 
 links <- links[-c(1866:1893),] #remove instances with repeat name
@@ -229,8 +226,8 @@ links$IDsource <- as.numeric(match(links$source, nodes$name)-1)
 links$IDtarget <- as.numeric(match(links$target, nodes$name)-1)
 
 #Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
-links2 <- data.frame(source=c(paste0(GHG_simpUK$GHG_group), paste0(GHG_simpUK$TES_Sector)), 
-                    target=c(paste0(GHG_simpUK$TES_Sector), paste0(GHG_simpUK$TES_Subsector)),
+links2 <- data.frame(source=c(paste0(GHG_simpUK$ghg_grouped), paste0(GHG_simpUK$tes_sector)), 
+                    target=c(paste0(GHG_simpUK$tes_sector), paste0(GHG_simpUK$tes_subsector)),
                     value=as.numeric(paste0(GHG_simpUK$Temissions))) 
 
 links2 <- links2[-c(3759:3786),] #remove instances with repeat name
@@ -300,12 +297,12 @@ sankey2
 
 #Plot time series
 Sect_time <- GHG_UK22 %>%
-  group_by(Year, TES_Sector) %>%
-  summarize(Temissions = sum(Emissions, na.rm = TRUE)) %>%
-  rename("Sector" = "TES_Sector") %>%
-ggplot(aes(x=as.numeric(Year), y=Temissions, color=Sector)) +
+  group_by(year, tes_sector) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  rename("Sector" = "tes_sector") %>% #rename variable
+ggplot(aes(x=as.numeric(year), y=Temissions, color=Sector)) +
   geom_line() +
-  xlab("") + ylab("Greenhouse Gas Emissions (kilotonnes CO2 eq.)") +
+  xlab("") + ylab("Greenhouse Gas Emissions (Megatonnes CO2 eq.)") +
   ggtitle("Greenhouse Gas Emissions of the UK per Sector Over Time") +
   theme_few() +
   scale_y_continuous(labels = comma) +
@@ -334,26 +331,25 @@ CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y val
 
 ```{r, warning=FALSE}
 
-ag_df <- GHG_regions2 %>%
-  filter(TES_Sector == "Agriculture") %>% #filter sector
-  filter(EmissionYear == "2021") %>% #filter to only 2021 
-  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE))
-ag_df$IPCC_name <- gsub('_', ' ', ag_df$IPCC_name) #replace underscores with spaces to make nicer to read
+ag_df <- GHG_UK22 %>%
+  filter(tes_sector == "Agriculture") %>% #filter sector
+  filter(year == "2022") %>% #filter to only  
+  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #wide - split GHGs
 agwideGHG <- ag_df %>%
-  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg_grouped, values_from=Temissions) %>%
   replace(is.na(.), 0)
 
 ```
 
 #### Agriculture Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in . From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
-aglinks <- data.frame(source=c(paste0(ag_df$GHG), paste0(ag_df$Subsector)), 
-                    target=c(paste0(ag_df$Subsector), paste0(ag_df$IPCC_name)),
+aglinks <- data.frame(source=c(paste0(ag_df$tes_subsector)), 
+                    target=c(paste0(ag_df$ghg_grouped)),
                     value=as.numeric(paste0(ag_df$Temissions)))
 
 #Create nodes df from names in links df
@@ -411,11 +407,11 @@ agsankey2
 
 #### Agriculture Breakdown Graphs
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's agriculture greenhouse gas emissions by greenhouse gas identity and subsector in 2021."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's agriculture greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
 
 agpie <- ag_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
-  add_pie(labels = ~GHG, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
-  add_pie(labels = ~Subsector, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
+  add_pie(labels = ~ghg, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
+  add_pie(labels = ~tes_subsector, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
   layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
          #annotations = list(list(x = 0.20 , y = 1, text = "Emissions by Greenhouse Gas Identity"), 
           #                  list(x = 0.80 , y = 1, text = "Emissions by Subsector")),
@@ -431,10 +427,10 @@ style(agpie, hovertemplate="%{label}
 ```
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by subsector, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agriculture sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by GHG
-agbar <- ggplot(ag_df, aes(x = Subsector, y = Temissions, fill = GHG)) + 
+agbar <- ggplot(ag_df, aes(x = tes_subsector, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -452,15 +448,15 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 ```
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by source, colored by subsector."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agriculture sector in 2022 by category, colored by subsector."}
 
 #Bar plot by source
-agsource <- ggplot(ag_df, aes(x = IPCC_name, y = Temissions, fill = Subsector)) + 
+agsource <- ggplot(ag_df, aes(x = tes_category, y = Temissions, fill = tes_subsector)) + 
   geom_bar(stat = "identity", width = 0.7, position = "dodge") + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Agriculture emissions in 2021") + #add a graph title
+  ggtitle("Agriculture emissions in 2022") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="top", legend.box = "horizontal",
         text=element_text(size=10, colour = "black"), axis.text.x=element_blank())
@@ -479,23 +475,23 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in 2021 by IPCC code, colored by subsector and grouped by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in  by IPCC code, colored by subsector and grouped by greenhouse gas identity."}
 
 #Plot GHGs into side-by-side plots with Plotly
 ag_CO2 <- agwideGHG %>% 
-  plot_ly(x = ~IPCC_name, y = ~CO2, color = ~Subsector, type = 'bar', legendgroup = ~Subsector) %>%
+  plot_ly(x = ~tes_category, y = ~CO2, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 ag_CH4 <- agwideGHG %>% 
-  plot_ly(x = ~IPCC_name, y = ~CH4, color = ~Subsector, type = 'bar', legendgroup = ~Subsector, showlegend = F) %>%
+  plot_ly(x = ~tes_category, y = ~CH4, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector, showlegend = F) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 ag_N2O <- agwideGHG %>% 
-  plot_ly(x = ~IPCC_name, y = ~N2O, color = ~Subsector, type = 'bar', legendgroup = ~Subsector, showlegend = F) %>%
+  plot_ly(x = ~tes_category, y = ~N2O, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector, showlegend = F) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 ag_GHGs <- subplot(ag_CO2, ag_CH4, ag_N2O, shareY = FALSE, margin = 0.05) %>%
-  layout(title = list(text = "UK's Agriculture Emissions in 2021", pad = list(t=50, b = 50)),
+  layout(title = list(text = "UK's Agriculture Emissions in 2022", pad = list(t=50, b = 50)),
          yaxis = list(title = 'Emissions (kt CO2 equivalents)'), 
          plot_bgcolor='#e5ecf6',
          legend = list(orientation = "h", title=list(text='<b>Subsector</b>')),
@@ -526,17 +522,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural combustion subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural combustion subsector in 2022 by category, colored by greenhouse gas identity."}
 
 #Bar plot combustion, stacked by GHG
 agcom <- ag_df %>%
-  filter(Subsector == "Agricultural combustion") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Agricultural combustion") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Agricultural Combustion") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Agricultural Combustion") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -555,17 +551,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2022 by category, colored by greenhouse gas identity."}
 
 #Bar plot soils, stacked by GHG
 agsoil <- ag_df %>%
-  filter(Subsector == "Agricultural soils") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Agricultural soils") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Agricultural Soils") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Agricultural Soils") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -585,17 +581,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2022 by category, colored by greenhouse gas identity."}
 
 #Bar plot livestock, stacked by GHG
 agls <- ag_df %>%
-  filter(Subsector == "Livestock") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Livestock") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Livestock") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Livestock") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -614,17 +610,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot other ag, stacked by GHG
 agother <- ag_df %>%
-  filter(Subsector == "Other agriculture") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Other agriculture") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Other Agriculture") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Other Agriculture") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -650,26 +646,25 @@ Note - possibly some replicate data or miscategorization - need to clean up the 
 
 ```{r, warning=FALSE}
 
-LULUCF <- GHG_regions2 %>%
-  filter(TES_Sector == "LULUCF") %>% #filter sector
-  filter(EmissionYear == "2021") %>% #filter to only 2021 
-  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE)) 
-LULUCF$IPCC_name <- gsub('_', ' ', LULUCF$IPCC_name) #replace underscores with spaces to make nicer to read
+LULUCF <- GHG_UK22 %>%
+  filter(tes_sector == "LULUCF") %>% #filter sector
+  filter(year == "2022") %>% #filter to only  
+  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #wide - split GHGs
 LULUCFwideGHG <- LULUCF %>%
-  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
   replace(is.na(.), 0)
 
 ```
 
 #### LULUCF Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
-LULUCFlinks <- data.frame(source=c(paste0(LULUCF$GHG), paste0(LULUCF$Subsector)), 
-                    target=c(paste0(LULUCF$Subsector), paste0(LULUCF$IPCC_name)),
+LULUCFlinks <- data.frame(source=c(paste0(LULUCF$ghg), paste0(LULUCF$tes_subsector)), 
+                    target=c(paste0(LULUCF$tes_subsector), paste0(LULUCF$tes_category)),
                     value=as.numeric(paste0(LULUCF$Temissions)))
 
 #Create nodes df from names in links df
@@ -697,10 +692,10 @@ LULUCFsankey
 #### LULUCF Breakdown Graphs
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2021 by subsector, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by GHG
-LULUCFbar <- ggplot(LULUCF, aes(x = Subsector, y = Temissions, fill = GHG)) + 
+LULUCFbar <- ggplot(LULUCF, aes(x = tes_subsector, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -721,15 +716,15 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 ```
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot by source with Plotly
 LULUCFsource <- LULUCFwideGHG %>% 
-  plot_ly(x = ~IPCC_name, y = ~CO2, type = 'bar', name = 'CO2') %>% 
+  plot_ly(x = ~tes_category, y = ~CO2, type = 'bar', name = 'CO2') %>% 
   add_trace(y = ~CH4, name = 'CH4') %>%
   add_trace(y = ~N2O, name = 'N2O') %>%
   layout(barmode = 'stack', 
-         title = list(text = "UK's LULUCF Emissions in 2021", pad = list(t=50, b=50)),
+         title = list(text = "UK's LULUCF Emissions in 2022", pad = list(t=50, b=50)),
          yaxis = list(title = 'Emissions (kt CO2 equivalents)'),
          xaxis = list(title = 'Source', showticklabels=FALSE))
          #legend = list(orientation = "h", title=list(text='<b>Subsector</b>')))
@@ -741,23 +736,23 @@ Emissions: %{y:,.4r} kt CO2 eq.")
 
 ```
 
-```{r, message=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2021 by source, colored by subsector and grouped by greenhouse gas identity."}
+```{r, message=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by subsector and grouped by greenhouse gas identity."}
 
 #Plot GHGs into side-by-side plots with Plotly
 LULUCF_CO2 <- LULUCFwideGHG %>% 
-  plot_ly(x = ~IPCC_name, y = ~CO2, color = ~Subsector, type = 'bar', legendgroup = ~Subsector) %>%
+  plot_ly(x = ~tes_category, y = ~CO2, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 LULUCF_CH4 <- LULUCFwideGHG %>% 
-  plot_ly(x = ~IPCC_name, y = ~CH4, color = ~Subsector, type = 'bar', legendgroup = ~Subsector, showlegend = F) %>%
+  plot_ly(x = ~tes_category, y = ~CH4, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector, showlegend = F) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 LULUCF_N2O <- LULUCFwideGHG %>% 
-  plot_ly(x = ~IPCC_name, y = ~N2O, color = ~Subsector, type = 'bar', legendgroup = ~Subsector, showlegend = F) %>%
+  plot_ly(x = ~tes_category, y = ~N2O, color = ~tes_subsector, type = 'bar', legendgroup = ~tes_subsector, showlegend = F) %>%
   layout(xaxis = list(showticklabels=FALSE, showgrid = FALSE))
 
 LULUCF_GHGs <- subplot(LULUCF_CO2, LULUCF_CH4, LULUCF_N2O, shareY = FALSE, margin = 0.05) %>%
-  layout(title = list(text = "UK's LULUCF Emissions in 2021", pad = list(t=50, b = 50)),
+  layout(title = list(text = "UK's LULUCF Emissions in 2022", pad = list(t=50, b = 50)),
          yaxis = list(title = 'Emissions (kt CO2 equivalents)'), 
          plot_bgcolor='#e5ecf6',
          legend = list(orientation = "h", title=list(text='<b>Subsector</b>')),
@@ -787,17 +782,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the bioenergy crops subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the bioenergy crops subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 biocrops <- LULUCF %>%
-  filter(Subsector == "Bioenergy crops") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Bioenergy crops") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Bioenergy Crops") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Bioenergy Crops") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -816,17 +811,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the cropland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the cropland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 cropsoilchg <- LULUCF %>%
-  filter(Subsector == "Cropland mineral soils change") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Cropland mineral soils change") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Cropland Mineral Soils Change") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Cropland Mineral Soils Change") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -845,17 +840,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the grassland mineral soils change subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the grassland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 grsoilchg <- LULUCF %>%
-  filter(Subsector == "Grassland mineral soils change") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Grassland mineral soils change") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Grassland Mineral Soils Change") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Grassland Mineral Soils Change") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -874,17 +869,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the forestry subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the forestry subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 forestry <- LULUCF %>%
-  filter(Subsector == "Forestry") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Forestry") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Forestry") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Forestry") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -903,17 +898,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the peatland subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the peatland subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 peat <- LULUCF %>%
-  filter(Subsector == "Peatland") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Peatland") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Peatland") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Peatland") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -932,17 +927,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the settlement subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the settlement subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 settle <- LULUCF %>%
-  filter(Subsector == "Settlement") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Settlement") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Settlement") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Settlement") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -961,17 +956,17 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the 'other' LULUCF subsector in 2021 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the 'other' LULUCF subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot other ag, stacked by GHG
 Lother <- LULUCF %>%
-  filter(Subsector == "Other LULUCF") %>%
-ggplot(aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+  filter(tes_subsector == "Other LULUCF") %>%
+ggplot(aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2021: Other LULUCF") + #add a graph title
+  ggtitle("Subsector Emissions in 2022: Other LULUCF") + #add a graph title
   xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
@@ -994,26 +989,25 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```{r, warning=FALSE}
 
-waste_df <- GHG_regions2 %>%
-  filter(TES_Sector == "Waste") %>% #filter sector
-  filter(EmissionYear == "2021") %>% #filter to only 2021 
-  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE)) 
-waste_df$IPCC_name <- gsub('_', ' ', waste_df$IPCC_name) #replace underscores with spaces to make nicer to read
+waste_df <- GHG_UK22 %>%
+  filter(tes_sector == "Waste") %>% #filter sector
+  filter(year == "2022") %>% #filter to only  
+  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #wide - split GHGs
 waste_wideGHG <- waste_df %>%
-  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
   replace(is.na(.), 0)
 
 ```
 
 #### Waste Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
-wastelinks <- data.frame(source=c(paste0(waste_df$GHG), paste0(waste_df$Subsector)), 
-                    target=c(paste0(waste_df$Subsector), paste0(waste_df$IPCC_name)),
+wastelinks <- data.frame(source=c(paste0(waste_df$ghg), paste0(waste_df$tes_subsector)), 
+                    target=c(paste0(waste_df$tes_subsector), paste0(waste_df$tes_category)),
                     value=as.numeric(paste0(waste_df$Temissions)))
 
 #Create nodes df from names in links df
@@ -1040,11 +1034,11 @@ wastesankey
 
 #### Waste Breakdown Graphs
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's waste greenhouse gas emissions by greenhouse gas identity and subsector in 2021."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's waste greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
 
 wastepie <- waste_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
-  add_pie(labels = ~GHG, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
-  add_pie(labels = ~IPCC_name, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
+  add_pie(labels = ~ghg, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
+  add_pie(labels = ~tes_category, values = ~Temissions, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
   layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
          #annotations = list(list(x = 0.20 , y = 1, text = "Emissions by Greenhouse Gas Identity"), 
           #                  list(x = 0.80 , y = 1, text = "Emissions by Subsector")),
@@ -1059,10 +1053,10 @@ style(wastepie, hovertemplate="%{label}
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's waste sector in 2021 by subsector, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
 
-#Bar plot by subsector, stacked by GHG
-wastebar <- ggplot(waste_df, aes(x = IPCC_name, y = Temissions, fill = GHG)) + 
+#Bar plot by subsector, stacked by ghg
+wastebar <- ggplot(waste_df, aes(x = tes_category, y = Temissions, fill = ghg)) + 
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
@@ -1087,26 +1081,25 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```{r, warning=FALSE}
 
-build_df <- GHG_regions2 %>%
-  filter(TES_Sector == "Buildings and product uses") %>% #filter sector
-  filter(EmissionYear == "2021") %>% #filter to only 2021 
-  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE)) 
-build_df$IPCC_name <- gsub('_', ' ', build_df$IPCC_name) #replace underscores with spaces to make nicer to read
+build_df <- GHG_UK22 %>%
+  filter(tes_sector == "Buildings and product uses") %>% #filter sector
+  filter(year == "2022") %>% #filter to only  
+  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
 
 #wide - split GHGs
 build_wideGHG <- build_df %>%
-  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
   replace(is.na(.), 0)
 
 ```
 
 #### Buildings and Products Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
-buildlinks <- data.frame(source=c(paste0(build_df$GHG), paste0(build_df$Subsector)), 
-                    target=c(paste0(build_df$Subsector), paste0(build_df$IPCC_name)),
+buildlinks <- data.frame(source=c(paste0(build_df$ghg), paste0(build_df$tes_subsector)), 
+                    target=c(paste0(build_df$tes_subsector), paste0(build_df$tes_category)),
                     value=as.numeric(paste0(build_df$Temissions)))
 
 #Create nodes df from names in links df
@@ -1135,26 +1128,25 @@ buildsankey
 
 ```{r, warning=FALSE}
 
-transport <- GHG_regions2 %>%
-  filter(TES_Sector == "Domestic transport") %>% #filter sector
-  filter(EmissionYear == "2021") %>% #filter to only 2021 
-  group_by(Subsector, IPCC_name, GHG, IPCC_code) %>%
-  summarize(Temissions = sum(Emission, na.rm = TRUE)) 
-transport$IPCC_name <- gsub('_', ' ', transport$IPCC_name) #replace underscores with spaces to make nicer to read
+transport <- GHG_UK22 %>%
+  filter(tes_sector == "Domestic transport") %>% #filter sector
+  filter(year == "2022") %>% #filter to only  
+  group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
 
 #wide - split GHGs
 transport_wideGHG <- transport %>%
-  pivot_wider(names_from = GHG, values_from=Temissions) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
   replace(is.na(.), 0)
 
 ```
 
 #### Domestic Transport Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2021. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
 
 #Set up Sankey links dataframe
-transportlinks <- data.frame(source=c(paste0(transport$GHG), paste0(transport$Subsector)), 
-                    target=c(paste0(transport$Subsector), paste0(transport$IPCC_name)),
+transportlinks <- data.frame(source=c(paste0(transport$ghg), paste0(transport$tes_subsector)), 
+                    target=c(paste0(transport$tes_subsector), paste0(transport$tes_category)),
                     value=as.numeric(paste0(transport$Temissions)))
 
 #Create nodes df from names in links df
