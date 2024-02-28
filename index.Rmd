@@ -41,7 +41,7 @@ library(flipPlots) #plots (install with Github)
 ## The National Atmospheric Emissions Inventory of the UK
 
 Introduction to the inventory, with links
-kilotonnes of CO2 equivalents
+megatonnesof CO2 equivalents
 Territorial Emissions Statistics (TES) sectors and subsectors used, as they are replacing National Communications (NC) sectors and subsectors in all reports (https://www.gov.uk/government/statistics/final-uk-greenhouse-gas-emissions-national-statistics-1990-to-2022)
 
 
@@ -218,7 +218,7 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 
 ### Sankey Diagram
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in . From left to right, greenhouse gas by sector by subsector. Proportions based on kilotonnes of CO2 equivalents."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in . From left to right, greenhouse gas by sector by subsector. Proportions based on megatonnesof CO2 equivalents."}
 
 #Set up Sankey links dataframe - from subsector to sector to GHGs
 links <- data.frame(source=c(paste0(GHG_UK2022$tes_subsector), paste0(GHG_UK2022$tes_sector)), 
@@ -241,7 +241,8 @@ links2 <- data.frame(source=c(paste0(GHG_UK2022$ghg_grouped), paste0(GHG_UK2022$
                     target=c(paste0(GHG_UK2022$tes_sector), paste0(GHG_UK2022$tes_subsector)),
                     value=as.numeric(paste0(GHG_UK2022$emissions_mt_co2e))) 
 
-links2 <- links2[-c(3759:3786),] #remove instances with repeat name
+#links2 <- links2[-c(2317:3786),] #remove instances with repeat name
+links2$target <- gsub("Waste", "Waste ", links2$target)
 
 #Create nodes df from names in links df
 nodes2 <- data.frame(
@@ -262,7 +263,7 @@ sankey <- sankeyNetwork(Links = links2, Nodes = nodes2, #dataframes to use
 							fontSize = 7,
               sinksRight=FALSE, #justify last variables right if true
 							nodePadding = 8, #vertical space between nodes
-              iterations = 10) #number of times for it to try to find the best order and format
+              iterations = 100) #number of times for it to try to find the best order and format
 
 sankey #view plot
 
@@ -272,6 +273,27 @@ sankey #view plot
 
 ```{r, eval=FALSE, include=FALSE}
 
+#Simplify
+GHG_simp <- GHG_UK2022 %>%
+  group_by(tes_sector, tes_subsector, source, ghg_grouped) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+
+#Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
+links3 <- data.frame(source=c(paste0(GHG_simp$ghg_grouped), paste0(GHG_simp$tes_sector)), 
+                    target=c(paste0(GHG_simp$tes_sector), paste0(GHG_simp$tes_subsector)),
+                    value=as.numeric(paste0(GHG_simp$Temissions))) 
+
+links3 <- links3[-c(1683:1710),] #remove instances with repeat name
+
+#Create nodes df from names in links df
+nodes3 <- data.frame(
+  name=unique(c(as.character(links3$source), 
+  as.character(links3$target))))
+
+#Add ID numbers
+links3$IDsource <- as.numeric(match(links3$source, nodes3$name)-1)
+links3$IDtarget <- as.numeric(match(links3$target, nodes3$name)-1)
+
 #Plot with Plotly
 sankey2 <- plot_ly(type = "sankey",
                    domain = list(x =  c(0,1),y =  c(0,1)),
@@ -280,14 +302,14 @@ sankey2 <- plot_ly(type = "sankey",
                    valueformat = ".0f",
                    valuesuffix = "kt CO2 eq.",
       node = list(
-        label = nodes$name,
+        label = nodes3$name,
         pad = 15,
         thickness = 20,
         line = list(color = "black", width = 0.5),
       link = list(
-        source = links$IDsource,
-        target = links$IDtarget,
-        value = links$value
+        source = links3$IDsource,
+        target = links3$IDtarget,
+        value = links3$value
         #label = linklist$label
         ))) %>% 
   layout(
@@ -304,7 +326,7 @@ sankey2
 
 ### Time Series Graph of Emissions by Sector
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK over time, by sector."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Greenhouse gas emissions in megatonnesof CO2 equivalents in the UK over time, by sector."}
 
 #Plot time series
 Sect_time <- GHG_UK22 %>%
@@ -438,7 +460,7 @@ style(agpie, hovertemplate="%{label}
 ```
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agriculture sector in 2022 by subsector, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the UK's agriculture sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by GHG
 agbar <- ggplot(ag_df, aes(x = tes_subsector, y = emissions_mt_co2e, fill = ghg)) + 
@@ -459,7 +481,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 ```
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agriculture sector in 2022 by category, colored by subsector."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the UK's agriculture sector in 2022 by category, colored by subsector."}
 
 #Bar plot by source
 agsource <- ggplot(ag_df, aes(x = category_1, y = emissions_mt_co2e, fill = tes_subsector)) + 
@@ -486,7 +508,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's agricultural sector in  by category, colored by subsector and grouped by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the UK's agricultural sector in  by category, colored by subsector and grouped by greenhouse gas identity."}
 
 #Plot GHGs into side-by-side plots with Plotly
 ag_CO2 <- agwideGHG %>% 
@@ -536,7 +558,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural combustion subsector in 2022 by category, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the agricultural combustion subsector in 2022 by category, colored by greenhouse gas identity."}
 
 #Bar plot combustion, stacked by GHG
 agcom <- ag_df %>%
@@ -565,7 +587,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural soils subsector in 2022 by category, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the agricultural soils subsector in 2022 by category, colored by greenhouse gas identity."}
 
 #Bar plot soils, stacked by GHG
 agsoil <- ag_df %>%
@@ -595,7 +617,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the livestock subsector in 2022 by category, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the livestock subsector in 2022 by category, colored by greenhouse gas identity."}
 
 #Bar plot livestock, stacked by GHG
 agls <- ag_df %>%
@@ -624,7 +646,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the agricultural 'other' subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the agricultural 'other' subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot other ag, stacked by GHG
 agother <- ag_df %>%
@@ -662,7 +684,7 @@ Note - possibly some replicate data or miscategorization - need to clean up the 
 
 LULUCF <- GHG_UK2022 %>%
   filter(tes_sector == "LULUCF") %>% #filter sector
-  replace(is.na(.), " ")
+  replace(is.na(.), "")
   #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
   #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
@@ -695,9 +717,9 @@ LULUCFlinks$IDtarget <- as.numeric(match(LULUCFlinks$target, LULUCFnodes$name)-1
 LULUCFsankey <- sankeyNetwork(Links = LULUCFlinks, Nodes = LULUCFnodes,
               Source = "IDsource", Target = "IDtarget",
               Value = "value", NodeID = "name",
-              units = "kilotonnes CO2 eq.",
+              units = "Mt CO2 eq.",
               sinksRight=TRUE, nodePadding = 30,
-              iterations = 50)
+              iterations = 100)
 
 LULUCFsankey
 
@@ -706,7 +728,7 @@ LULUCFsankey
 #### LULUCF Breakdown Graphs
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by subsector, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the UK's LULUCF sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by GHG
 LULUCFbar <- ggplot(LULUCF, aes(x = tes_subsector, y = emissions_mt_co2e, fill = ghg)) + 
@@ -730,7 +752,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 ```
 
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot by source with Plotly
 LULUCFsource <- LULUCFwideGHG %>% 
@@ -750,7 +772,7 @@ Emissions: %{y:,.4r} kt CO2 eq.")
 
 ```
 
-```{r, message=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by subsector and grouped by greenhouse gas identity."}
+```{r, message=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by subsector and grouped by greenhouse gas identity."}
 
 #Plot GHGs into side-by-side plots with Plotly
 LULUCF_CO2 <- LULUCFwideGHG %>% 
@@ -796,7 +818,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the bioenergy crops subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the bioenergy crops subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 biocrops <- LULUCF %>%
@@ -825,7 +847,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the cropland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the cropland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 cropsoilchg <- LULUCF %>%
@@ -854,7 +876,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the grassland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the grassland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 grsoilchg <- LULUCF %>%
@@ -883,7 +905,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the forestry subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the forestry subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 forestry <- LULUCF %>%
@@ -912,7 +934,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the peatland subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the peatland subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 peat <- LULUCF %>%
@@ -941,7 +963,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the settlement subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the settlement subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot subsector, stacked by GHG
 settle <- LULUCF %>%
@@ -970,7 +992,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the 'other' LULUCF subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the 'other' LULUCF subsector in 2022 by source, colored by greenhouse gas identity."}
 
 #Bar plot other ag, stacked by GHG
 Lother <- LULUCF %>%
@@ -1017,11 +1039,11 @@ waste_wideGHG <- waste_df %>%
 ```
 
 #### Waste Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 #Set up Sankey links dataframe
-wastelinks <- data.frame(source=c(paste0(waste_df$ghg), paste0(waste_df$tes_subsector)), 
-                    target=c(paste0(waste_df$tes_subsector), paste0(waste_df$tes_category)),
+wastelinks <- data.frame(source=c(paste0(waste_df$ghg), paste0(waste_df$activity)), 
+                    target=c(paste0(waste_df$activity), paste0(waste_df$source_1)),
                     value=as.numeric(paste0(waste_df$emissions_mt_co2e)))
 
 #Create nodes df from names in links df
@@ -1038,8 +1060,8 @@ wastelinks$IDtarget <- as.numeric(match(wastelinks$target, wastenodes$name)-1)
 wastesankey <- sankeyNetwork(Links = wastelinks, Nodes = wastenodes,
               Source = "IDsource", Target = "IDtarget",
               Value = "value", NodeID = "name",
-              units = "kilotonnes CO2 eq.",
-              sinksRight=FALSE, nodePadding = 35,
+              units = "Mt CO2 eq.",
+              sinksRight=FALSE, nodePadding = 8,
               iterations = 45)
 
 wastesankey
@@ -1061,13 +1083,13 @@ wastepie <- waste_df %>% plot_ly(textinfo = 'label', insidetextorientation='hori
                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) 
 
 style(wastepie, hovertemplate="%{label} 
-      Emissions: %{value:,.4r} kt CO2 eq.
+      Emissions: %{value:,.4r} Mt CO2 eq.
       %{percent}
       <extra></extra>")
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in kilotonnes of CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnesof CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by ghg
 wastebar <- ggplot(waste_df, aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
@@ -1109,11 +1131,11 @@ build_wideGHG <- build_df %>%
 ```
 
 #### Buildings and Products Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 #Set up Sankey links dataframe
 buildlinks <- data.frame(source=c(paste0(build_df$ghg), paste0(build_df$tes_subsector)), 
-                    target=c(paste0(build_df$tes_subsector), paste0(build_df$tes_category)),
+                    target=c(paste0(build_df$tes_subsector), paste0(build_df$source_1)),
                     value=as.numeric(paste0(build_df$emissions_mt_co2e)))
 
 #Create nodes df from names in links df
@@ -1130,7 +1152,7 @@ buildlinks$IDtarget <- as.numeric(match(buildlinks$target, buildnodes$name)-1)
 buildsankey <- sankeyNetwork(Links = buildlinks, Nodes = buildnodes,
               Source = "IDsource", Target = "IDtarget",
               Value = "value", NodeID = "name",
-              units = "kilotonnes CO2 eq.",
+              units = "Mt CO2 eq.",
               sinksRight=FALSE, nodePadding = 15,
               iterations = 15)
 
@@ -1156,7 +1178,7 @@ transport_wideGHG <- transport %>%
 ```
 
 #### Domestic Transport Sankey Diagram
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022. From left to right, greenhouse gas by subsector by individual source, following IPCC source names."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022."}
 
 #Set up Sankey links dataframe
 transportlinks <- data.frame(source=c(paste0(transport$ghg), paste0(transport$tes_subsector)), 
@@ -1177,7 +1199,7 @@ transportlinks$IDtarget <- as.numeric(match(transportlinks$target, transportnode
 transportsankey <- sankeyNetwork(Links = transportlinks, Nodes = transportnodes,
               Source = "IDsource", Target = "IDtarget",
               Value = "value", NodeID = "name",
-              units = "kilotonnes CO2 eq.",
+              units = "Mt CO2 eq.",
               sinksRight=FALSE, nodePadding = 15,
               iterations = 15)
 
