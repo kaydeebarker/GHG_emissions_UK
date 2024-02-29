@@ -8,7 +8,7 @@ output:
     toc_float: yes
 ---
 
-```{r, include=FALSE}
+```{r setup, include=FALSE}
 
 rm(list=ls()) #clear global environment/workspace
 knitr::opts_chunk$set(echo = FALSE, message = FALSE) #set echo and message to false universally
@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE) #set echo and message to fa
 
 ```
 
-```{r, message=FALSE}
+```{r load libraries, message=FALSE}
 
 library(readODS) #read ods files
 library(readxl) #reads excel files
@@ -25,6 +25,7 @@ library(tidyverse) #Tidy packages
 library(dplyr) #lots of functions - data manipulation
 library(janitor) #helps with data cleaning
 library(usethis) #look at and apply settings to Github actions
+library(data.tree) #transform df or file to data tree
 library(ggplot2) #pretty plots
 library(ggthemes) #themes for ggplot
 library(RColorBrewer) #color palettes
@@ -33,19 +34,21 @@ library(scales) #axis formatting options
 library(plotly) #interactive web graphs
 library(networkD3) #interactive web network graphs
 library(flipPlots) #plots (install with Github)
+library(circlepackeR) #circle packing (install with Github)
 
 #usethis::edit_r_environ() #set environment with Github token for API
+
 
 ```
 
 ## The National Atmospheric Emissions Inventory of the UK
 
 Introduction to the inventory, with links
-megatonnesof CO2 equivalents
+megatonnes of CO2 equivalents
 Territorial Emissions Statistics (TES) sectors and subsectors used, as they are replacing National Communications (NC) sectors and subsectors in all reports (https://www.gov.uk/government/statistics/final-uk-greenhouse-gas-emissions-national-statistics-1990-to-2022)
 
 
-```{r, warning=FALSE}
+```{r load data, warning=FALSE}
 
 #Map loop to download UK sector mapping data
 downloaded <- file.exists("UKsectors.xlsx") #checks if file is downloaded in working directory
@@ -119,7 +122,8 @@ GHG_UK22 <- read_ods(
   separate_wider_delim(activity, delim = " - ", #separate activity, define delimiter as " - "
                        names = c("activity_1", "activity_2"), #name new columns
                        too_few = "align_start", too_many = "merge", #what to do with fewer or more than 2
-                       cols_remove = FALSE) #keep original column
+                       cols_remove = FALSE) %>% #keep original column
+  replace(is.na(.), "") #get rid of NA values, input blank
 
 
 #Map loop to download UK Regional data 1990-2022 from the UK National Atmospheric Emissions Inventory
@@ -190,17 +194,80 @@ GHG_regions2 <- inner_join(IPCC_TES, GHG_regions,
 #Newest years only 
 #UK-wide dataset
 GHG_UK2022 <- GHG_UK22 %>%
-  filter(year == "2022")
+  filter(year == "2022") #%>%
+  #filter(tes_sector != "LULUCF") #filter out LULUCF to see if negative values impact things
 
+GHG_UK2022pos <- GHG_UK2022 %>%
+  filter(emissions_mt_co2e >= "0") #subset filter only positive values
+  
 #Regional dataset
 GHG_regions2021 <- GHG_regions2 %>%
   filter(emission_year == "2021")
 
+#Simplify
+GHG_simp <- GHG_UK2022 %>%
+  group_by(tes_sector, tes_subsector, tes_category, category_2, category_1, activity, ghg_grouped) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  replace(is.na(.), "") %>%
+  filter(Temissions >= "0") #subset filter only positive values
+
+
 ```
+
+```{r data tree, warning=FALSE}
+
+#Make data tree
+
+#Define hierarchy as pathString
+GHG_UK22$pathString <- paste("UK", 
+                            GHG_UK22$tes_sector, 
+                            GHG_UK22$tes_subsector, 
+                            GHG_UK22$category_2,
+                            GHG_UK22$category_1,
+                            #GHG_UK22$activity,
+                            sep = "/")
+
+#Convert to nodes
+GHGtree <- as.Node(GHG_UK22)
+
+#print(GHGtree, "emissions_mt_co2e", limit=20)
+
+
+#Define hierarchy as pathString
+GHG_UK2022pos$pathString <- paste("UK", 
+                            GHG_UK2022pos$tes_sector, 
+                            GHG_UK2022pos$tes_subsector, 
+                            #GHG_simp$tes_category,
+                            GHG_UK2022pos$category_2,
+                            GHG_UK2022pos$category_1,
+                            GHG_UK2022pos$activity,
+                            sep = "/")
+#Convert to nodes
+GHGtree2022 <- as.Node(GHG_UK2022pos)
+
+#print(GHGtree2022, "Temissions", limit=20)
+
+
+#Define hierarchy as pathString
+GHG_simp$pathString <- paste("UK", 
+                            GHG_simp$tes_sector, 
+                            GHG_simp$tes_subsector, 
+                            #GHG_simp$tes_category,
+                            GHG_simp$category_2,
+                            GHG_simp$category_1,
+                            GHG_simp$activity,
+                            sep = "/")
+
+#Convert to nodes
+GHGsimptree <- as.Node(GHG_simp)
+
+
+```
+
 
 ## Visualization at High Level
 
-```{r, warning=FALSE}
+```{r vis set up, warning=FALSE}
 
 #Define custom color palette
 colors <- paste(c('#40004b','#67001f','#b2182b','#dfc27d','#f6e8c3','#fddbc7','#fde0ef',
@@ -273,11 +340,6 @@ sankey #view plot
 
 ```{r, eval=FALSE, include=FALSE}
 
-#Simplify
-GHG_simp <- GHG_UK2022 %>%
-  group_by(tes_sector, tes_subsector, source, ghg_grouped) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
 #Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
 links3 <- data.frame(source=c(paste0(GHG_simp$ghg_grouped), paste0(GHG_simp$tes_sector)), 
                     target=c(paste0(GHG_simp$tes_sector), paste0(GHG_simp$tes_subsector)),
@@ -323,6 +385,48 @@ sankey2
 
 ```
 
+### Packed Circles
+```{r packed circles, warning=FALSE}
+
+circlepackeR(GHGtree2022, size = "emissions_mt_co2e", color_min = "hsl(56,80%,80%)", color_max = "hsl(341,30%,40%)")
+
+#circlepackeR(GHGsimptree, size = "Temissions", color_min = "hsl(56,80%,80%)", color_max = "hsl(341,30%,40%)")
+
+```
+
+### Sunburst Diagram
+```{r, warning=FALSE}
+
+GHGsb <- GHG_UK2022 %>%
+          filter(tes_sector != "LULUCF") %>% #filter out LULUCF
+          group_by(tes_sector, tes_subsector) %>%
+          summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+          unite('ids', c(tes_sector, tes_subsector), remove = FALSE, sep = "-") #combine columns for id
+
+sb <- plot_ly()
+
+sb <- sb %>% add_trace(
+  type = 'sunburst',
+  ids = GHGsb$ids,
+  labels = GHGsb$tes_subsector,
+  parents = GHGsb$tes_sector,
+  values = GHGsb$Temissions,
+  branchvalues = 'total',
+  insidetextorientation='radial'
+) %>%
+    layout(
+      grid = list(columns =2, rows = 1),
+      margin = list(l = 0, r = 0, b = 0, t = 0),
+      sunburstcolorway = c(
+        "#636efa","#EF553B","#00cc96","#ab63fa","#19d3f3",
+        "#e763fa", "#FECB52","#FFA15A","#FF6692","#B6E880"
+      ),
+      extendsunburstcolors = TRUE)
+
+sb
+
+
+```
 
 ### Time Series Graph of Emissions by Sector
 
@@ -434,6 +538,12 @@ agsankey2 <- plot_ly(type = "sankey",
     yaxis = list(showgrid = F, zeroline = F))
 
 agsankey2
+
+
+```
+
+#### Packed Circles
+```{r,warning=FALSE}
 
 
 ```
@@ -678,7 +788,7 @@ Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values,
 
 ### LULUCF
 
-Note - possibly some replicate data or miscategorization - need to clean up the data for this section.
+Note - negative as well as positive values in this sector means some creative thinking is needed for visualization.
 
 ```{r, warning=FALSE}
 
