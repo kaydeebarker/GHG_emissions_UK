@@ -25,7 +25,7 @@ library(tidyverse) #Tidy packages
 library(dplyr) #lots of functions - data manipulation
 library(janitor) #helps with data cleaning
 library(usethis) #look at and apply settings to Github actions
-library(data.tree) #transform df or file to data tree
+#library(data.tree) #transform df or file to data tree
 library(ggplot2) #pretty plots
 library(ggthemes) #themes for ggplot
 library(RColorBrewer) #color palettes
@@ -33,8 +33,8 @@ library(wesanderson) #color palettes from Wes Anderson films
 library(scales) #axis formatting options
 library(plotly) #interactive web graphs
 library(networkD3) #interactive web network graphs
-library(flipPlots) #plots (install with Github)
-library(circlepackeR) #circle packing (install with Github)
+#library(circlepackeR) #circle packing (install with Github)
+#library(htmlwidgets) #save html widgets
 
 #usethis::edit_r_environ() #set environment with Github token for API
 
@@ -50,9 +50,43 @@ Territorial Emissions Statistics (TES) sectors and subsectors used, as they are 
 
 ```{r load data, warning=FALSE}
 
-#Map loop to download UK sector mapping data
-downloaded <- file.exists("UKsectors.xlsx") #checks if file is downloaded in working directory
+#Map loop to download UK 2022 data from the UK Department for Energy Security and Net Zero
+downloaded <- file.exists("UKGHG_2022.ods") #checks if file is downloaded in working directory
 if(downloaded != T){ #if downloaded is not true
+  map2("https://assets.publishing.service.gov.uk/media/65c0d54663a23d000dc821ca/final-greenhouse-gas-emissions-2022-by-source-dataset.ods", #update this link when new data available
+                         "UKGHG_2022.ods", download.file)} #else{print('data downloaded')} #name and download or print
+
+#Read in ods file
+GHG_UK22 <- read_ods(
+  path = "UKGHG_2022.ods",
+  sheet = 1, #define tab/sheet to read
+  col_names = TRUE, #use header row for column names
+  col_types = NULL, #guess data types
+  na = "", #treat blank cells as NA
+  skip = 0, #don't skip rows
+  formula_as_formula = FALSE, #values only
+  range = NULL, 
+  row_names = FALSE, #no row names
+  strings_as_factors = TRUE) %>% #use factors
+  clean_names() %>% #clean column names to lowercase, with underscores
+  separate_wider_delim(source, delim = " - ", #separate source, define delimiter as " - "
+                       names = c("source_1", "source_2", "source_3"), #name new columns
+                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 3
+                       cols_remove = FALSE) %>% #keep original column
+  separate_wider_delim(tes_category, delim = " - ", #separate category, define delimiter as " - "
+                       names = c("category_1", "category_2"), #name new columns
+                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 2
+                       cols_remove = FALSE) %>% #keep original column
+  separate_wider_delim(activity, delim = " - ", #separate activity, define delimiter as " - "
+                       names = c("activity_1", "activity_2"), #name new columns
+                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 2
+                       cols_remove = FALSE) %>% #keep original column
+  replace(is.na(.), "") #get rid of NA values, input blank
+
+
+#Map loop to download UK sector mapping data
+downloaded2 <- file.exists("UKsectors.xlsx") #checks if file is downloaded in working directory
+if(downloaded2 != T){ #if downloaded is not true
   map2("https://assets.publishing.service.gov.uk/media/65c0d392c4319100141a455d/ghg-statistics-tes-to-nc-sector-mapping-2022.xlsx", #update this link when new data available
                          "UKsectors.xlsx", download.file)} #else{print('data downloaded')} #name and download or print
 
@@ -92,43 +126,10 @@ IPCC_TES <- UKsectors[, c(1,2,8,9,10)] #dataframe with just IPCC codes and TES s
 
 
 
-#Map loop to download UK 2022 data from the UK Department for Energy Security and Net Zero
-downloaded <- file.exists("UKGHG_2022.ods") #checks if file is downloaded in working directory
-if(downloaded != T){ #if downloaded is not true
-  map2("https://assets.publishing.service.gov.uk/media/65c0d54663a23d000dc821ca/final-greenhouse-gas-emissions-2022-by-source-dataset.ods", #update this link when new data available
-                         "UKGHG_2022.ods", download.file)} #else{print('data downloaded')} #name and download or print
-
-#Read in ods file
-GHG_UK22 <- read_ods(
-  path = "UKGHG_2022.ods",
-  sheet = 1, #define tab/sheet to read
-  col_names = TRUE, #use header row for column names
-  col_types = NULL, #guess data types
-  na = "", #treat blank cells as NA
-  skip = 0, #don't skip rows
-  formula_as_formula = FALSE, #values only
-  range = NULL, 
-  row_names = FALSE, #no row names
-  strings_as_factors = TRUE) %>% #use factors
-  clean_names() %>% #clean column names to lowercase, with underscores
-  separate_wider_delim(source, delim = " - ", #separate source, define delimiter as " - "
-                       names = c("source_1", "source_2", "source_3"), #name new columns
-                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 3
-                       cols_remove = FALSE) %>% #keep original column
-  separate_wider_delim(tes_category, delim = " - ", #separate category, define delimiter as " - "
-                       names = c("category_1", "category_2"), #name new columns
-                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 2
-                       cols_remove = FALSE) %>% #keep original column
-  separate_wider_delim(activity, delim = " - ", #separate activity, define delimiter as " - "
-                       names = c("activity_1", "activity_2"), #name new columns
-                       too_few = "align_start", too_many = "merge", #what to do with fewer or more than 2
-                       cols_remove = FALSE) %>% #keep original column
-  replace(is.na(.), "") #get rid of NA values, input blank
-
 
 #Map loop to download UK Regional data 1990-2022 from the UK National Atmospheric Emissions Inventory
-downloaded2 <- file.exists("GHG_regions.xlsx") #checks if file is downloaded in working directory
-if(downloaded2 != T){ #if downloaded is not true
+downloaded3 <- file.exists("GHG_regions.xlsx") #checks if file is downloaded in working directory
+if(downloaded3 != T){ #if downloaded is not true
   map2("https://uk-air.defra.gov.uk/reports/cat09/2306200930_DA_GHGI_1990-2022_Final_v3.1.xlsx", #update this link when new data available
                         "GHG_regions.xlsx", download.file)} #else{print('data downloaded')} #name and download or print
 
@@ -210,56 +211,6 @@ GHG_simp <- GHG_UK2022 %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
   replace(is.na(.), "") %>%
   filter(Temissions >= "0") #subset filter only positive values
-
-
-```
-
-```{r data tree, warning=FALSE}
-
-#Make data tree
-
-#Define hierarchy as pathString
-GHG_UK22$pathString <- paste("UK", 
-                            GHG_UK22$tes_sector, 
-                            GHG_UK22$tes_subsector, 
-                            GHG_UK22$category_2,
-                            GHG_UK22$category_1,
-                            #GHG_UK22$activity,
-                            sep = "/")
-
-#Convert to nodes
-GHGtree <- as.Node(GHG_UK22)
-
-#print(GHGtree, "emissions_mt_co2e", limit=20)
-
-
-#Define hierarchy as pathString
-GHG_UK2022pos$pathString <- paste("UK", 
-                            GHG_UK2022pos$tes_sector, 
-                            GHG_UK2022pos$tes_subsector, 
-                            #GHG_simp$tes_category,
-                            GHG_UK2022pos$category_2,
-                            GHG_UK2022pos$category_1,
-                            GHG_UK2022pos$activity,
-                            sep = "/")
-#Convert to nodes
-GHGtree2022 <- as.Node(GHG_UK2022pos)
-
-#print(GHGtree2022, "Temissions", limit=20)
-
-
-#Define hierarchy as pathString
-GHG_simp$pathString <- paste("UK", 
-                            GHG_simp$tes_sector, 
-                            GHG_simp$tes_subsector, 
-                            #GHG_simp$tes_category,
-                            GHG_simp$category_2,
-                            GHG_simp$category_1,
-                            GHG_simp$activity,
-                            sep = "/")
-
-#Convert to nodes
-GHGsimptree <- as.Node(GHG_simp)
 
 
 ```
@@ -385,14 +336,6 @@ sankey2
 
 ```
 
-### Packed Circles
-```{r packed circles, warning=FALSE}
-
-circlepackeR(GHGtree2022, size = "emissions_mt_co2e", color_min = "hsl(56,80%,80%)", color_max = "hsl(341,30%,40%)")
-
-#circlepackeR(GHGsimptree, size = "Temissions", color_min = "hsl(56,80%,80%)", color_max = "hsl(341,30%,40%)")
-
-```
 
 ### Sunburst Diagram
 ```{r, warning=FALSE}
@@ -450,7 +393,7 @@ ggplot(aes(x=as.numeric(year), y=Temissions, color=Sector)) +
 #Sect_time #view ggplot
 
 #Make interactive with Plotly
-t_int <- ggplotly(Sect_time) %>% #convert to interactive graph
+t_int <- plotly::ggplotly(Sect_time) %>% #convert to interactive graph
   layout(legend = list(
       orientation = "h"))
   
@@ -542,17 +485,11 @@ agsankey2
 
 ```
 
-#### Packed Circles
-```{r,warning=FALSE}
-
-
-```
-
 #### Agriculture Breakdown Graphs
 
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's agriculture greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
 
-agpie <- ag_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
+agpie <- ag_df %>% plotly::plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
   add_pie(labels = ~ghg, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
   add_pie(labels = ~tes_subsector, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
   layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
