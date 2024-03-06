@@ -230,9 +230,93 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 
 ```
 
+### Sunburst Diagram
+
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sunburst diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2022."}
+
+#Format data for sunburst
+#Separate out variables summaries - all GHGs combined
+sectors <- GHG_UK2022pos %>%
+  group_by(tes_sector) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+
+subsectors <- GHG_UK2022pos %>%
+  group_by(tes_sector, tes_subsector) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+
+cat_2 <- GHG_UK2022pos %>%
+  group_by(tes_sector, tes_subsector, category_2) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  unite('parents', c(tes_sector, tes_subsector), remove = TRUE, sep = " - ") #combine higher categories into parents
+
+cat_1 <- GHG_UK2022pos %>%
+  group_by(tes_sector, tes_subsector, category_2, category_1) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  unite('parents', c(tes_sector, tes_subsector, category_2), remove = TRUE, sep = " - ") #combine higher categories into parents
+
+activities <- GHG_UK2022pos %>%
+  group_by(tes_sector, tes_subsector, category_2, category_1, activity) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  unite('parents', c(tes_sector, tes_subsector, category_2, category_1), remove = TRUE, sep = " - ") #combine higher categories into parents
+
+
+#Now paste together distinct instances into dataframe with hierarchical structure - start simple, set root
+GHGsb1 <- data.frame(
+  parents =c(rep("", 8)),
+  labels =c(paste0(sectors$tes_sector)),
+  values =as.numeric(c(paste0(sectors$Temissions)))
+)
+
+#Add id column                    
+GHGsb1 <- GHGsb1 %>%
+          mutate(ids = labels) %>%
+          mutate(percent = values/sum(values))
+
+#Now paste together distinct instances into dataframe with hierarchical structure - add on
+GHGsb2 <- data.frame(
+  parents =c(paste0(subsectors$tes_sector), paste0(cat_2$parents), paste0(cat_1$parents), paste0(activities$parents)),
+  labels =c(paste0(subsectors$tes_subsector), paste0(cat_2$category_2), paste0(cat_1$category_1), paste0(activities$activity)),
+  values =as.numeric(c(paste0(subsectors$Temissions), paste0(cat_2$Temissions), paste0(cat_1$Temissions), paste0(activities$Temissions)))
+)
+
+#Add id column                    
+GHGsb2 <- GHGsb2 %>%
+          mutate(percent = values/sum(values)) %>%
+          unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
+
+GHGsb <- rbind(GHGsb1, GHGsb2) 
+
+
+#Interactive sunburst with Plotly
+sb <- plot_ly(GHGsb,
+  type = 'sunburst',
+  ids = ~ids,
+  labels = ~labels,
+  parents = ~parents,
+  values = ~values,
+  branchvalues = 'total',
+  insidetextorientation='radial',
+  maxdepth=2
+) %>%
+    layout(
+      grid = list(columns =2, rows = 1),
+      margin = list(l = 0, r = 0, b = 0, t = 0),
+      sunburstcolorway = c(
+        "#636efa","#EF553B","#00cc96","#ab63fa","#19d3f3",
+        "#e763fa", "#FECB52","#FFA15A","#FF6692","#B6E880"
+      ),
+      extendsunburstcolors = TRUE)
+
+style(sb, hovertemplate="%{label} 
+      Emissions: %{value:,.3r} Mt CO2 eq.
+      <extra></extra>")
+
+```
+
+
 ### Sankey Diagram
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in . From left to right, greenhouse gas by sector by subsector. Proportions based on megatonnesof CO2 equivalents."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2022. From left to right, greenhouse gas by sector by subsector. Proportions based on megatonnesof CO2 equivalents."}
 
 #Set up Sankey links dataframe - from subsector to sector to GHGs
 links <- data.frame(source=c(paste0(GHG_UK2022$tes_subsector), paste0(GHG_UK2022$tes_sector)), 
@@ -351,81 +435,6 @@ sankey3 <- plot_ly(type = "sankey",
     font = list(size = 10),
     xaxis = list(showgrid = F, zeroline = F),
     yaxis = list(showgrid = F, zeroline = F))
-
-
-```
-
-### Sunburst Diagram
-
-```{r, eval=FALSE, include=FALSE}
-
-#Try d3r make hierarchy json
-GHGtree2022 <- d3_nest(GHG_simp, value_cols = "Temissions")
-
-GHGtree2022
-
-#Sunburst with sunburstR
-sb1 <- sunburst(GHGtree2022, width="100%", height=400)
-div(
-  style="display: flex; align-items:center;",
-  sb1
-)
-
-
-#Plotly
-#Separate out variables summaries - all GHGs combined
-sectors <- GHG_UK2022pos %>%
-  group_by(tes_sector) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-subsectors <- GHG_UK2022pos %>%
-  group_by(tes_sector, tes_subsector) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-cat_2 <- GHG_UK2022pos %>%
-  group_by(tes_sector, tes_subsector, category_2) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-cat_1 <- GHG_UK2022pos %>%
-  group_by(tes_sector, tes_subsector, category_2, category_1) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-activities <- GHG_UK2022pos %>%
-  group_by(tes_sector, tes_subsector, category_2, category_1, activity) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-
-#Now paste together distinct instances into dataframe with hierarchical structure - start simple
-GHGsb <- data.frame(
-  parents =c(rep("", 8), paste0(subsectors$tes_sector)),
-  labels =c(paste0(sectors$tes_sector), paste0(subsectors$tes_subsector)),
-  values =as.numeric(c(paste0(sectors$Temissions), paste0(subsectors$Temissions)))
-)
-
-#Add id column                    
-GHGsb <- GHGsb %>%
-          unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
-
-
-sb <- plot_ly(GHGsb,
-  type = 'sunburst',
-  ids = ~ids,
-  labels = ~labels,
-  parents = ~parents,
-  values = ~values,
-  #branchvalues = 'total',
-  insidetextorientation='radial'
-) %>%
-    layout(
-      grid = list(columns =2, rows = 1),
-      margin = list(l = 0, r = 0, b = 0, t = 0),
-      sunburstcolorway = c(
-        "#636efa","#EF553B","#00cc96","#ab63fa","#19d3f3",
-        "#e763fa", "#FECB52","#FFA15A","#FF6692","#B6E880"
-      ),
-      extendsunburstcolors = TRUE)
-
-sb
 
 
 ```
