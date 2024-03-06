@@ -308,7 +308,7 @@ sankey2 <- plot_ly(type = "sankey",
                    orientation = "h",
                    arrangement="snap", # can also change this to 'fixed'
                    valueformat = ".0f",
-                   valuesuffix = "kt CO2 eq.",
+                   valuesuffix = "Mt CO2 eq.",
       node = list(
         label = nodes3$name,
         pad = 15,
@@ -334,7 +334,7 @@ sankey3 <- plot_ly(type = "sankey",
                    orientation = "h",
                    arrangement="snap", # can also change this to 'fixed'
                    valueformat = ".0f",
-                   valuesuffix = "kt CO2 eq.",
+                   valuesuffix = "Mt CO2 eq.",
       node = list(
         label = nodes3$name,
         pad = 15,
@@ -521,7 +521,7 @@ agsankey2 <- plot_ly(type = "sankey",
                    domain = list(x =  c(0,1),y =  c(0,1)),
                    orientation = "h",
                    valueformat = ".0f",
-                   valuesuffix = "kt CO2 eq.",
+                   valuesuffix = "Mt CO2 eq.",
       node = list(
         label = agnodes$name,
         pad = 15,
@@ -548,7 +548,7 @@ agsankey2
 
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's agriculture greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
 
-agpie <- ag_df %>% plotly::plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
+agpie <- ag_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
   add_pie(labels = ~ghg, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
   add_pie(labels = ~tes_subsector, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
   layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
@@ -581,7 +581,7 @@ agbar_int <- ggplotly(agbar) %>% #convert to interactive graph
   
 #Plotly customization
 style(agbar_int, hovertemplate="Subsector: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -594,7 +594,7 @@ agsource <- ggplot(ag_df, aes(x = category_1, y = emissions_mt_co2e, fill = tes_
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Agriculture emissions in 2022") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="top", legend.box = "horizontal",
         text=element_text(size=10, colour = "black"), axis.text.x=element_blank())
 #axis.text.x = element_text(size=8, colour = "black")
@@ -608,7 +608,7 @@ agsource_int <- ggplotly(agsource) %>% #convert to interactive graph
 #Plotly customization
 style(agsource_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -657,7 +657,7 @@ ag_GHGs <- subplot(ag_CO2, ag_CH4, ag_N2O, shareY = FALSE, margin = 0.05) %>%
 #Plotly customization
 style(ag_GHGs, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 
 ```
@@ -673,7 +673,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Agricultural Combustion") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -687,7 +687,7 @@ agcom_int <- ggplotly(agcom) %>% #convert to interactive graph
 #Plotly customization
 style(agcom_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -702,7 +702,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Agricultural Soils") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -716,7 +716,7 @@ agsoil_int <- ggplotly(agsoil) %>% #convert to interactive graph
 #Plotly customization
 style(agsoil_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 
 ```
@@ -732,7 +732,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Livestock") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -746,7 +746,7 @@ agls_int <- ggplotly(agls) %>% #convert to interactive graph
 #Plotly customization
 style(agls_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -761,7 +761,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Other Agriculture") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -775,7 +775,7 @@ agother_int <- ggplotly(agother) %>% #convert to interactive graph
 #Plotly customization
 style(agother_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
   
 ```
 
@@ -839,7 +839,7 @@ LULUCFbar <- ggplot(LULUCF, aes(x = tes_subsector, y = emissions_mt_co2e, fill =
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  xlab("Subsector") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("Subsector") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(axis.text.x=element_blank())
 
 #Make interactive with Plotly
@@ -849,7 +849,7 @@ LULUCFbar_int <- ggplotly(LULUCFbar) %>% #convert to interactive graph
   
 #Plotly customization
 style(LULUCFbar_int, hovertemplate="Subsector: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 
 ```
@@ -863,14 +863,14 @@ LULUCFsource <- LULUCFwideGHG %>%
   add_trace(y = ~N2O, name = 'N2O') %>%
   layout(barmode = 'stack', 
          title = list(text = "UK's LULUCF Emissions in 2022", pad = list(t=50, b=50)),
-         yaxis = list(title = 'Emissions (kt CO2 equivalents)'),
+         yaxis = list(title = 'Emissions (Mt CO2 equivalents)'),
          xaxis = list(title = 'Source', showticklabels=FALSE))
          #legend = list(orientation = "h", title=list(text='<b>Subsector</b>')))
 
 #Plotly customization
 style(LULUCFsource, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") 
+Emissions: %{y:,.4r} Mt CO2 eq.") 
 
 ```
 
@@ -891,7 +891,7 @@ LULUCF_N2O <- LULUCFwideGHG %>%
 
 LULUCF_GHGs <- subplot(LULUCF_CO2, LULUCF_CH4, LULUCF_N2O, shareY = FALSE, margin = 0.05) %>%
   layout(title = list(text = "UK's LULUCF Emissions in 2022", pad = list(t=50, b = 50)),
-         yaxis = list(title = 'Emissions (kt CO2 equivalents)'), 
+         yaxis = list(title = 'Emissions (Mt CO2 equivalents)'), 
          plot_bgcolor='#e5ecf6',
          legend = list(orientation = "h", title=list(text='<b>Subsector</b>')),
          annotations = list(list(
@@ -916,7 +916,7 @@ LULUCF_GHGs <- subplot(LULUCF_CO2, LULUCF_CH4, LULUCF_N2O, shareY = FALSE, margi
 #Plotly customization
 style(LULUCF_GHGs, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -931,7 +931,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Bioenergy Crops") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -945,7 +945,7 @@ biocrops_int <- ggplotly(biocrops) %>% #convert to interactive graph
 #Plotly customization
 style(biocrops_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -960,7 +960,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Cropland Mineral Soils Change") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -974,7 +974,7 @@ cropsoilchg_int <- ggplotly(cropsoilchg) %>% #convert to interactive graph
 #Plotly customization
 style(cropsoilchg_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -989,7 +989,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Grassland Mineral Soils Change") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -1003,7 +1003,7 @@ grsoilchg_int <- ggplotly(grsoilchg) %>% #convert to interactive graph
 #Plotly customization
 style(grsoilchg_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -1018,7 +1018,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Forestry") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -1032,7 +1032,7 @@ forestry_int <- ggplotly(forestry) %>% #convert to interactive graph
 #Plotly customization
 style(forestry_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -1047,7 +1047,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Peatland") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -1061,7 +1061,7 @@ peat_int <- ggplotly(peat) %>% #convert to interactive graph
 #Plotly customization
 style(peat_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -1076,7 +1076,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Settlement") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -1090,7 +1090,7 @@ settle_int <- ggplotly(settle) %>% #convert to interactive graph
 #Plotly customization
 style(settle_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
@@ -1105,7 +1105,7 @@ ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) +
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
   #scale_x_discrete(guide = guide_axis(angle = 45)) +
   ggtitle("Subsector Emissions in 2022: Other LULUCF") + #add a graph title
-  xlab("") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="left", legend.box = "vertical", 
         axis.text.x=element_blank())
         #axis.text.x = element_text(size=8, colour = "black"))
@@ -1119,7 +1119,7 @@ Lother_int <- ggplotly(Lother) %>% #convert to interactive graph
 #Plotly customization
 style(Lother_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
   
 ```
 
@@ -1199,7 +1199,7 @@ wastebar <- ggplot(waste_df, aes(x = tes_category, y = emissions_mt_co2e, fill =
   geom_col() + 
   theme_few() + #remove grid, white background
   scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  xlab("Source") + ylab("Emissions (kt CO2 eq.)") + #define/change X and Y labels
+  xlab("Source") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
   theme(legend.position="top", legend.box = "horizontal",
         text=element_text(size=10, colour = "black"), axis.text.x=element_blank())
 
@@ -1210,7 +1210,7 @@ wastebar_int <- ggplotly(wastebar) %>% #convert to interactive graph
   
 #Plotly customization
 style(wastebar_int, hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} kt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
