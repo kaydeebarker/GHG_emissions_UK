@@ -4,11 +4,8 @@ author: "Kaydee S. Barker"
 date: "Mar. 2024"
 output:
   html_document:
-    
     toc: true
     toc_float: true
-  pdf_document:
-    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -304,6 +301,7 @@ GHGsb2 <- GHGsb2 %>%
 GHGsb <- rbind(GHGsb1, GHGsb2) 
 
 
+
 #Interactive sunburst with Plotly
 sb <- plot_ly(GHGsb,
   type = 'sunburst',
@@ -311,22 +309,31 @@ sb <- plot_ly(GHGsb,
   labels = ~labels,
   parents = ~parents,
   values = ~values,
-  branchvalues = 'total',
+  branchvalues = 'total', #parents are totals of children
   insidetextorientation='radial',
-  maxdepth=2
+  maxdepth = 2 #how many levels to show
+  #width = 800, height = 800 #plot dimensions
 ) %>%
     layout(
-      grid = list(columns =2, rows = 1),
-      margin = list(l = 0, r = 0, b = 0, t = 0),
+      margin = list(l = 10, r = 10, b = 10, t = 10),
       sunburstcolorway = c(
-        "#636efa","#EF553B","#00cc96","#ab63fa","#19d3f3",
-        "#e763fa", "#FECB52","#FFA15A","#FF6692","#B6E880"
+        "#3CBD9C", #transport
+        "#F0A7CA", #buildings
+        "#F0C954", #industry
+        "#C24841", #electricity
+        "#96BC61", #ag green
+        "#5D7ED1", #lulucf blue
+        "#D38744", #fuel
+        "#A780BB"  #waste purple
       ),
       extendsunburstcolors = TRUE)
 
 style(sb, hovertemplate="%{label} 
-      Emissions: %{value:,.3r} Mt CO2 eq.
+      %{value:,.3r} Mt CO2 equivalents
+      %{percentParent:.1%} of %{parent} emissions
       <extra></extra>")
+
+
 
 ```
 
