@@ -227,7 +227,7 @@ colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript
 
 ```
 
-### Sunburst Diagram
+### Sunburst Diagram of Emissions
 
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sunburst diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2022."}
 
@@ -279,10 +279,9 @@ GHGsb1 <- data.frame(
   values =as.numeric(c(paste0(sectors$Temissions)))
 )
 
-#Add id column                    
+#Add id column
 GHGsb1 <- GHGsb1 %>%
-          mutate(ids = labels) %>%
-          mutate(percent = values/sum(values))
+          mutate(ids = labels) 
 
 #Now paste together distinct instances into dataframe with hierarchical structure - add on
 GHGsb2 <- data.frame(
@@ -295,11 +294,10 @@ GHGsb2 <- data.frame(
 
 #Add id column                    
 GHGsb2 <- GHGsb2 %>%
-          mutate(percent = values/sum(values)) %>%
           unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
 
+#Combine into one dataframe
 GHGsb <- rbind(GHGsb1, GHGsb2) 
-
 
 
 #Interactive sunburst with Plotly
@@ -311,7 +309,9 @@ sb <- plot_ly(GHGsb,
   values = ~values,
   branchvalues = 'total', #parents are totals of children
   insidetextorientation='radial',
-  maxdepth = 2 #how many levels to show
+  maxdepth = 2, #how many levels to show
+  level = "",
+  sort = TRUE #sort by size
   #width = 800, height = 800 #plot dimensions
 ) %>%
     layout(
@@ -326,7 +326,8 @@ sb <- plot_ly(GHGsb,
         "#D38744", #fuel
         "#A780BB"  #waste purple
       ),
-      extendsunburstcolors = TRUE)
+      extendsunburstcolors = TRUE
+      )
 
 style(sb, hovertemplate="%{label} 
       %{value:,.3r} Mt CO2 equivalents
@@ -337,133 +338,97 @@ style(sb, hovertemplate="%{label}
 
 ```
 
+### Sunburst Diagram of Removals
 
-### Sankey Diagram
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sunburst diagram demonstrating proportional breakdown of greenhouse gas removals in the UK (Land Use, Land Use Change, and Forestry Sector) in 2022."}
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating proportional breakdown of greenhouse gas emissions in the UK in 2022. From left to right, greenhouse gas by sector by subsector. Proportions based on megatonnesof CO2 equivalents."}
+#Format data for sunburst
+GHG_UK2022neg <- GHG_UK2022 %>%
+  filter(emissions_mt_co2e <= "0") #subset filter only negative values
 
-#Set up Sankey links dataframe - from subsector to sector to GHGs
-links <- data.frame(source=c(paste0(GHG_UK2022$tes_subsector), paste0(GHG_UK2022$tes_sector)), 
-                    target=c(paste0(GHG_UK2022$tes_sector), paste0(GHG_UK2022$ghg_grouped)),
-                    value=as.numeric(paste0(GHG_UK2022$emissions_mt_co2e)))
+#Separate out variables summaries - all GHGs combined
+subsectors_neg <- GHG_UK2022neg %>%
+  group_by(tes_subsector) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
-links <- links[-c(1866:1893),] #remove instances with repeat name
+cat_neg <- GHG_UK2022neg %>%
+  group_by(tes_subsector, tes_category) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
 
-#Create nodes df from names in links df
-nodes <- data.frame(
-  name=unique(c(as.character(links$source), 
-  as.character(links$target))))
-
-#Add ID numbers
-links$IDsource <- as.numeric(match(links$source, nodes$name)-1)
-links$IDtarget <- as.numeric(match(links$target, nodes$name)-1)
-
-#Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
-links2 <- data.frame(source=c(paste0(GHG_UK2022$ghg_grouped), paste0(GHG_UK2022$tes_sector)), 
-                    target=c(paste0(GHG_UK2022$tes_sector), paste0(GHG_UK2022$tes_subsector)),
-                    value=as.numeric(paste0(GHG_UK2022$emissions_mt_co2e))) 
-
-#links2 <- links2[-c(2317:3786),] #remove instances with repeat name
-links2$target <- gsub("Waste", "Waste ", links2$target)
-
-#Create nodes df from names in links df
-nodes2 <- data.frame(
-  name=unique(c(as.character(links2$source), 
-  as.character(links2$target))))
-
-#Add ID numbers
-links2$IDsource <- as.numeric(match(links2$source, nodes2$name)-1)
-links2$IDtarget <- as.numeric(match(links2$target, nodes2$name)-1)
-
-#Plot with networkD3
-sankey <- sankeyNetwork(Links = links2, Nodes = nodes2, #dataframes to use
-              Source = "IDsource", Target = "IDtarget", #numeric identifiers of variables
-              Value = "value", #numeric weights
-							NodeID = "name", #node labels
-              units = "Megatonnes CO2 eq.", #label units
-							#colourScale = colorJS,
-							fontSize = 7,
-              sinksRight=FALSE, #justify last variables right if true
-							nodePadding = 8, #vertical space between nodes
-              iterations = 100) #number of times for it to try to find the best order and format
-
-sankey #view plot
+act_neg <- GHG_UK2022neg %>%
+  group_by(tes_subsector, tes_category, activity) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  unite('parents', c(tes_subsector, tes_category), remove = TRUE, sep = " - ") #combine higher categories into parents
 
 
-```
+#Now paste together distinct instances into dataframe with hierarchical structure - start simple, set root
+GHGsb1_neg <- data.frame(
+  parents =c(rep("", 6)),
+  labels =c(paste0(subsectors_neg$tes_subsector)),
+  values =as.numeric(c(paste0(subsectors_neg$Temissions)))
+)
 
-```{r, eval=FALSE, include=FALSE}
+#Add id column
+GHGsb1_neg <- GHGsb1_neg %>%
+          mutate(ids = labels) 
 
-#Set up Sankey links dataframe - breakdown from GHGs to sectors to subsectors
-links3 <- data.frame(source=c(paste0(GHG_simp$ghg_grouped), paste0(GHG_simp$tes_sector)), 
-                    target=c(paste0(GHG_simp$tes_sector), paste0(GHG_simp$tes_subsector)),
-                    value=as.numeric(paste0(GHG_simp$Temissions))) 
+#Now paste together distinct instances into dataframe with hierarchical structure - add on
+GHGsb2_neg <- data.frame(
+  parents =c(paste0(cat_neg$tes_subsector), paste0(act_neg$parents)),
+  labels =c(paste0(cat_neg$tes_category), paste0(act_neg$activity)),
+  values =as.numeric(c(paste0(cat_neg$Temissions), paste0(act_neg$Temissions)))
+)
 
-links3 <- links3[-c(1683:1710),] #remove instances with repeat name
+#Add id column                    
+GHGsb2_neg <- GHGsb2_neg %>%
+          unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
 
-#Create nodes df from names in links df
-nodes3 <- data.frame(
-  name=unique(c(as.character(links3$source), 
-  as.character(links3$target))))
+#Combine into one dataframe
+GHGsb_neg <- rbind(GHGsb1_neg, GHGsb2_neg) 
 
-#Add ID numbers
-links3$IDsource <- as.numeric(match(links3$source, nodes3$name)-1)
-links3$IDtarget <- as.numeric(match(links3$target, nodes3$name)-1)
+#Convert negative values to absolute (positive) values
+GHGsb_neg$values <- abs(GHGsb_neg$values)
 
-#Plot with Plotly
-sankey2 <- plot_ly(type = "sankey",
-                   domain = list(x =  c(0,1),y =  c(0,1)),
-                   orientation = "h",
-                   arrangement="snap", # can also change this to 'fixed'
-                   valueformat = ".0f",
-                   valuesuffix = "Mt CO2 eq.",
-      node = list(
-        label = nodes3$name,
-        pad = 15,
-        thickness = 20,
-        line = list(color = "black", width = 0.5),
-      link = list(
-        source = links3$IDsource,
-        target = links3$IDtarget,
-        value = links3$value
-        #label = linklist$label
-        ))) %>% 
-  layout(
-    title = "Greenhouse Gas Emissions Per Sector in the UK",
-    font = list(size = 10),
-    xaxis = list(showgrid = F, zeroline = F),
-    yaxis = list(showgrid = F, zeroline = F))
+#Interactive sunburst with Plotly
+sb_neg <- plot_ly(GHGsb_neg,
+  type = 'sunburst',
+  ids = ~ids,
+  labels = ~labels,
+  parents = ~parents,
+  values = ~values,
+  branchvalues = 'total', #parents are totals of children
+  insidetextorientation='radial',
+  maxdepth = 2, #how many levels to show
+  level = "",
+  sort = TRUE #sort by size
+  #width = 800, height = 800 #plot dimensions
+) %>%
+    layout(
+      margin = list(l = 10, r = 10, b = 10, t = 10),
+      sunburstcolorway = c(
+        "#3CBD9C", #forestry
+        "#F0C954", #grassland
+        "#5D7ED1", #peatland
+        "#C24841", #cropland
+        "#96BC61",
+        "#F0A7CA", 
+        "#D38744", 
+        "#A780BB"
+      ),
+      extendsunburstcolors = TRUE
+      )
 
-sankey2 #view
+style(sb_neg, hovertemplate="%{label} 
+      %{value:,.3r} Mt CO2 equivalents
+      %{percentParent:.1%} of %{parent} removals
+      <extra></extra>")
 
-#Plot with Plotly and json file
-sankey3 <- plot_ly(type = "sankey",
-                   domain = list(x =  c(0,1),y =  c(0,1)),
-                   orientation = "h",
-                   arrangement="snap", # can also change this to 'fixed'
-                   valueformat = ".0f",
-                   valuesuffix = "Mt CO2 eq.",
-      node = list(
-        label = nodes3$name,
-        pad = 15,
-        thickness = 20,
-        line = list(color = "black", width = 0.5),
-      link = list(
-        source = links3$IDsource,
-        target = links3$IDtarget,
-        value = GHGtree2022$value
-        #label = linklist$label
-        ))) %>% 
-  layout(
-    title = "Greenhouse Gas Emissions Per Sector in the UK",
-    font = list(size = 10),
-    xaxis = list(showgrid = F, zeroline = F),
-    yaxis = list(showgrid = F, zeroline = F))
 
 
 ```
 
-### Time Series Graph of Emissions by Sector
+
+### Time Series Graph of Net Emissions by Sector
 
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Greenhouse gas emissions in megatonnesof CO2 equivalents in the UK over time, by sector."}
 
