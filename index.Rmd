@@ -1,11 +1,14 @@
 ---
 title: "GHG Emissions of the UK"
 author: "Kaydee S. Barker"
-date: 'Feb. 2024'
-output: 
+date: "Mar. 2024"
+output:
   html_document:
-    toc: yes
-    toc_float: yes
+    
+    toc: true
+    toc_float: true
+  pdf_document:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -33,9 +36,6 @@ library(wesanderson) #color palettes from Wes Anderson films
 library(scales) #axis formatting options
 library(plotly) #interactive web graphs
 library(networkD3) #interactive web network graphs
-library(d3r) #make hierarchical json
-library(sunburstR) #sunburst
-library(htmltools) #display via html
 
 #usethis::edit_r_environ() #set environment with Github token for API
 
@@ -245,6 +245,7 @@ subsectors <- GHG_UK2022pos %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 cat_2 <- GHG_UK2022pos %>%
+  filter(category_2 != "") %>%
   group_by(tes_sector, tes_subsector, category_2) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
   unite('parents', c(tes_sector, tes_subsector), remove = TRUE, sep = " - ") #combine higher categories into parents
@@ -252,12 +253,26 @@ cat_2 <- GHG_UK2022pos %>%
 cat_1 <- GHG_UK2022pos %>%
   group_by(tes_sector, tes_subsector, category_2, category_1) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-  unite('parents', c(tes_sector, tes_subsector, category_2), remove = TRUE, sep = " - ") #combine higher categories into parents
+  mutate(parents = case_when(
+    category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, sep = " - "),
+    category_2 == "" ~str_c(tes_sector,tes_subsector, sep = " - ")))
 
-activities <- GHG_UK2022pos %>%
-  group_by(tes_sector, tes_subsector, category_2, category_1, activity) %>%
+act_1 <- GHG_UK2022pos %>%
+  group_by(tes_sector, tes_subsector, category_2, category_1, activity_1) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-  unite('parents', c(tes_sector, tes_subsector, category_2, category_1), remove = TRUE, sep = " - ") #combine higher categories into parents
+  mutate(parents = case_when(
+    category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, category_1, sep = " - "),
+    category_2 == "" ~str_c(tes_sector,tes_subsector, category_1, sep = " - ")
+  ))
+
+act_2 <- GHG_UK2022pos %>%
+  filter(activity_2 != "") %>%
+  group_by(tes_sector, tes_subsector, category_2, category_1, activity_1, activity_2) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  mutate(parents = case_when(
+    category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, category_1, activity_1, sep = " - "),
+    category_2 == "" ~str_c(tes_sector,tes_subsector, category_1, activity_1, sep = " - ")
+  ))
 
 
 #Now paste together distinct instances into dataframe with hierarchical structure - start simple, set root
@@ -274,9 +289,11 @@ GHGsb1 <- GHGsb1 %>%
 
 #Now paste together distinct instances into dataframe with hierarchical structure - add on
 GHGsb2 <- data.frame(
-  parents =c(paste0(subsectors$tes_sector), paste0(cat_2$parents), paste0(cat_1$parents), paste0(activities$parents)),
-  labels =c(paste0(subsectors$tes_subsector), paste0(cat_2$category_2), paste0(cat_1$category_1), paste0(activities$activity)),
-  values =as.numeric(c(paste0(subsectors$Temissions), paste0(cat_2$Temissions), paste0(cat_1$Temissions), paste0(activities$Temissions)))
+  parents =c(paste0(subsectors$tes_sector), paste0(cat_2$parents), paste0(cat_1$parents), 
+             paste0(act_1$parents), paste0(act_2$parents)),
+  labels =c(paste0(subsectors$tes_subsector), paste0(cat_2$category_2), paste0(cat_1$category_1), 
+            paste0(act_1$activity_1), paste0(act_2$activity_2)),
+  values =as.numeric(c(paste0(subsectors$Temissions), paste0(cat_2$Temissions), paste0(cat_1$Temissions), paste0(act_1$Temissions), paste0(act_2$Temissions)))
 )
 
 #Add id column                    
