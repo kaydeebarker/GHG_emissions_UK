@@ -207,6 +207,10 @@ GHG_simp <- GHG_UK2022 %>%
   replace(is.na(.), "") %>%
   filter(Temissions >= "0") #subset filter only positive values
 
+#Pivot - rows are greenhouse gas groups
+GHG_wide <- GHG_UK22 %>%
+  pivot_wider(names_from = ghg_grouped, values_from=emissions_mt_co2e) %>%
+  replace(is.na(.), 0)
 
 ```
 
@@ -215,15 +219,24 @@ GHG_simp <- GHG_UK2022 %>%
 ```{r vis set up, warning=FALSE}
 
 #Define custom color palette
-colors <- paste(c('#40004b','#67001f','#b2182b','#dfc27d','#f6e8c3','#fddbc7','#fde0ef',
-                  '#FF7E70','#2852A8','#DBB96E','#786EDB','#BD9DAC','#9C9075','#01665e','#6EDB93',
-                  '#FF9C91','#FFD4E8','#CC995E','#FF8F99','#80AAFF',
-                  '#6EDB70','#948B76','#D4B0C0','#BD5E53','#708670',
-                  '#3D7EFF','#A496FF','#8C80DA','#62B2B5','#9E002F',
-                  '#D90041','#FF2949','#58B059','#448745','#F5CE7A',
-                  '#FFBF76','#7BE1E5','#7CF77E','#D4C39F','#FFEBBF','#536353'), collapse = '", "')
+colors <- c(
+        "#3CBD9C", #transport
+        "#F0A7CA", #buildings
+        "#F0C954", #industry
+        "#C24841", #electricity
+        "#96BC61", #ag green
+        "#5D7ED1", #lulucf blue
+        "#D38744", #fuel
+        "#A780BB"  #waste purple
+      )
 
-colorJS <- paste('d3.scaleOrdinal(["', colors, '"])') #format to call Javascript D3
+
+colors_3lvls <- c(
+  "#C24841", #CH4
+  "#3CBD9C", #CO2
+  "#F0C954"  #N2O
+)
+
 
 ```
 
@@ -316,16 +329,7 @@ sb <- plot_ly(GHGsb,
 ) %>%
     layout(
       margin = list(l = 10, r = 10, b = 10, t = 10),
-      sunburstcolorway = c(
-        "#3CBD9C", #transport
-        "#F0A7CA", #buildings
-        "#F0C954", #industry
-        "#C24841", #electricity
-        "#96BC61", #ag green
-        "#5D7ED1", #lulucf blue
-        "#D38744", #fuel
-        "#A780BB"  #waste purple
-      ),
+      sunburstcolorway = colors,
       extendsunburstcolors = TRUE
       )
 
@@ -480,9 +484,7 @@ agwideGHG <- ag_df %>%
 
 ```
 
-#### Agriculture Sankey Diagram
-
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2022."}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2022."}
 
 #Set up Sankey links dataframe
 aglinks <- data.frame(source=c(paste0(ag_df$ghg_grouped), paste0(ag_df$tes_subsector), paste0(ag_df$category_2)), 
@@ -552,6 +554,7 @@ agpie <- ag_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal
   layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
          #annotations = list(list(x = 0.20 , y = 1, text = "Emissions by Greenhouse Gas Identity"), 
           #                  list(x = 0.80 , y = 1, text = "Emissions by Subsector")),
+         colorscale = colors,
          grid=list(rows=1, columns=3),
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) 
@@ -576,7 +579,23 @@ agbar <- ggplot(ag_df, aes(x = tes_subsector, y = emissions_mt_co2e, fill = ghg)
 agbar_int <- ggplotly(agbar) %>% #convert to interactive graph
   layout(legend = list(
       orientation = "h"))
-  
+
+#Make Plotly bar chart
+#Plot GHGs into side-by-side plots with Plotly
+agbar_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "Agriculture") %>%
+  group_by(tes_subsector, ghg, ghg_grouped) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg_grouped, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_subsector, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~CH4, name = 'CH4', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#F0C954")) %>%
+  layout(yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
+         barmode = 'stack'
+         )
+
+
 #Plotly customization
 style(agbar_int, hovertemplate="Subsector: %{x}
 Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
@@ -796,9 +815,7 @@ LULUCFwideGHG <- LULUCF %>%
 
 ```
 
-#### LULUCF Sankey Diagram
-
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2022."}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2022."}
 
 #Set up Sankey links dataframe
 LULUCFlinks <- data.frame(source=c(paste0(LULUCF$ghg)), 
@@ -1138,9 +1155,7 @@ waste_wideGHG <- waste_df %>%
 
 ```
 
-#### Waste Sankey Diagram
-
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 #Set up Sankey links dataframe
 wastelinks <- data.frame(source=c(paste0(waste_df$ghg), paste0(waste_df$activity)), 
@@ -1229,9 +1244,7 @@ build_wideGHG <- build_df %>%
 
 ```
 
-#### Buildings and Products Sankey Diagram
-
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 #Set up Sankey links dataframe
 buildlinks <- data.frame(source=c(paste0(build_df$ghg), paste0(build_df$tes_subsector)), 
@@ -1277,9 +1290,7 @@ transport_wideGHG <- transport %>%
 
 ```
 
-#### Domestic Transport Sankey Diagram
-
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022."}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022."}
 
 #Set up Sankey links dataframe
 transportlinks <- data.frame(source=c(paste0(transport$ghg), paste0(transport$tes_subsector)), 
