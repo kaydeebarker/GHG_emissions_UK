@@ -1322,13 +1322,7 @@ style(wastepie, hovertemplate="%{label}
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
-
-waste_df <- GHG_UK2022 %>%
-  filter(tes_sector == "Waste") %>% #filter sector
-  replace(is.na(.), "")
-  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
-  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+```{r, eval=FALSE, include=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
 
 #Bar plot by subsector, stacked by ghg
 wastebar <- ggplot(waste_df, aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
