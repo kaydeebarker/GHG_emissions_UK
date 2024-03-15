@@ -469,22 +469,13 @@ CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y val
 
 ### Agriculture
 
-```{r, warning=FALSE}
+```{r ag sankey1, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2022."}
 
 ag_df <- GHG_UK2022 %>%
   filter(tes_sector == "Agriculture") %>% #filter sector
   replace(is.na(.), "")
   #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
   #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-#wide - split GHGs
-agwideGHG <- ag_df %>%
-  pivot_wider(names_from = ghg_grouped, values_from=emissions_mt_co2e) %>%
-  replace(is.na(.), 0)
-
-```
-
-```{r ag sankey1, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's agricultural sector in 2022."}
 
 #Set up Sankey links dataframe
 aglinks <- data.frame(source=c(paste0(ag_df$ghg_grouped), paste0(ag_df$tes_subsector), paste0(ag_df$category_2)), 
@@ -618,19 +609,6 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```{r ag subsectors, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's agriculture sector in 2022 by subsector, stacked by greenhouse gas identity."}
 
-#Bar plot by subsector, stacked by GHG
-agbar <- ggplot(ag_df, aes(x = tes_subsector, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  xlab("Subsector") + ylab("Emissions (Mt CO2 eq.)") #define/change X and Y labels
-
-#Make ggplot interactive with Plotly
-agbar_int <- ggplotly(agbar) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h"))
-
-
 #Bar plot by subsector, stacked by GHG with Plotly
 agbar_int <- GHG_UK2022 %>% 
   filter(tes_sector == "Agriculture") %>%
@@ -651,9 +629,9 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, ag categories, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's agriculture sector in 2022 by category, filled by subsector."}
+```{r ag categories 1, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's agriculture sector in 2022 by category, filled by subsector."}
 
-#Bar plot by category, colored by subsector with Plotly
+#Bar plot by category, filled by subsector with Plotly
 agcat_int <- GHG_UK2022 %>% 
   filter(tes_sector == "Agriculture") %>%
   group_by(tes_subsector, tes_category) %>%
@@ -661,8 +639,7 @@ agcat_int <- GHG_UK2022 %>%
   droplevels() %>%
   plot_ly(x = ~tes_category, type = 'bar', y = ~Temissions, color = ~tes_subsector, colors = colors,
           marker = list(
-            width = 1.5
-                        )) %>%
+            width = 1.5)) %>%
   layout(title = 'Agriculture Emissions by TES Subsector and Category',
          yaxis = list(title = 'Emissions (Mt CO2 eq.)'),
          xaxis = list(title = '', tickangle = -90),
@@ -682,7 +659,7 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ##### Subsector GHGs
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural combustion subsector in 2022 by category, stacked by fuel type."}
+```{r ag c, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural combustion subsector in 2022 by category, stacked by fuel type."}
 
 #Bar plot combustion, stacked by fuel type with Plotly
 agcom_int <- GHG_UK2022 %>% 
@@ -702,6 +679,7 @@ agcom_int <- GHG_UK2022 %>%
   add_trace(y = ~straw, name = 'Straw', marker = list(color ="#F0C954")) %>%
   layout(title = 'Agricultural Combustion Emissions by Fuel Type',
          yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
+         xaxis = list(title = ''),
          barmode = 'stack'
          )
 
@@ -712,7 +690,7 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural soils subsector in 2022 by category, stacked by greenhouse gas identity."}
+```{r ag soil, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural soils subsector in 2022 by category, stacked by greenhouse gas identity."}
 
 #Bar plot soil, stacked by GHG with Plotly
 agsoil_int <- GHG_UK2022 %>% 
@@ -738,7 +716,7 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the livestock subsector in 2022 by category, stacked by greenhouse gas identity."}
+```{r livestock1, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the livestock subsector in 2022 by category, stacked by greenhouse gas identity."}
 
 
 #Bar plot livestock animals, stacked by GHG with Plotly
@@ -764,7 +742,7 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the livestock subsector in 2022 by category, stacked by animal kind."}
+```{r livestock2, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the livestock subsector in 2022 by category, stacked by animal kind."}
 
 #Bar plot livestock category, stacked by animal with Plotly
 agls2_int <- GHG_UK2022 %>% 
@@ -777,7 +755,7 @@ agls2_int <- GHG_UK2022 %>%
   droplevels() %>%
   plot_ly(x = ~category_1, type = 'bar', y = ~beef_cattle, name = 'Beef cattle', marker = list(color ="#C24841")) %>%
   add_trace(y = ~dairy_cattle, name = 'Dairy cattle', marker = list(color ="#D38744")) %>%
-  add_trace(y = ~sheep, name = 'Sheep', marker = list(color ="#F0C954")) %>%
+  add_trace(y = ~sheep, name = 'Sheep', marker = list(color ="#96BC61")) %>%
   add_trace(y = ~pigs, name = 'Pigs', marker = list(color ="#F0A7CA")) %>%
   add_trace(y = ~poultry, name = 'Poultry', marker = list(color ="#A780BB")) %>%
   add_trace(y = ~other_livestock, name = 'Other livestock', marker = list(color ="#3CBD9C")) %>%
@@ -794,7 +772,7 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the livestock subsector in 2022 by animal, stacked by greenhouse gas identity."}
+```{r livestock3, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the livestock subsector in 2022 by animal, stacked by greenhouse gas identity."}
 
 
 #Bar plot livestock animals, stacked by GHG with Plotly
@@ -822,17 +800,6 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural 'other' subsector in 2022 by category, stacked by greenhouse gas identity."}
 
-colors <- c(
-        "#3CBD9C", #transport
-        "#F0A7CA", #buildings
-        "#F0C954", #industry
-        "#C24841", #electricity
-        "#96BC61", #ag green
-        "#5D7ED1", #lulucf blue
-        "#D38744", #fuel
-        "#A780BB"  #waste purple
-      )
-
 #Bar plot other ag, stacked by GHG
 agother_int <- GHG_UK2022 %>% 
   filter(tes_sector == "Agriculture") %>%
@@ -857,24 +824,13 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ### LULUCF
 
-Note - negative as well as positive values in this sector means some creative thinking is needed for visualization.
-
-```{r, warning=FALSE}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2022."}
 
 LULUCF <- GHG_UK2022 %>%
   filter(tes_sector == "LULUCF") %>% #filter sector
   replace(is.na(.), "")
   #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
   #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-#wide - split GHGs
-LULUCFwideGHG <- LULUCF %>%
-  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
-  replace(is.na(.), 0)
-
-```
-
-```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's LULUCF sector in 2022."}
 
 #Set up Sankey links dataframe
 LULUCFlinks <- data.frame(source=c(paste0(LULUCF$ghg)), 
@@ -905,50 +861,101 @@ LULUCFsankey
 
 #### LULUCF Breakdown Graphs
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by subsector, colored by greenhouse gas identity."}
+```{r LULUCF subsectors, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by subsector, stacked by greenhouse gas identity."}
 
-#Bar plot by subsector, stacked by GHG
-LULUCFbar <- ggplot(LULUCF, aes(x = tes_subsector, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  xlab("Subsector") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(axis.text.x=element_blank())
 
-#Make interactive with Plotly
-LULUCFbar_int <- ggplotly(LULUCFbar) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h"))
-  
+#Bar plot by subsector, stacked by GHG with Plotly
+LULUCF_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
+  group_by(tes_subsector, ghg, ghg_grouped) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg_grouped, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_subsector, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~CH4, name = 'CH4', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
+  layout(yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = 'Subsector'), 
+         barmode = 'stack'
+         )
+
 #Plotly customization
-style(LULUCFbar_int, hovertemplate="Subsector: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
-
+style(LULUCF_int, hovertemplate="Subsector: %{x}
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by greenhouse gas identity."}
+```{r ag categories, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's agriculture sector in 2022 by category, filled by subsector."}
+
+#Bar plot by category, filled by subsector with Plotly
+LULUCFcat_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
+  group_by(tes_subsector, tes_category) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~Temissions, color = ~tes_subsector, 
+          colors = c("#C24841","#D38744","#96BC61", "#F0C954","#5D7ED1","#3CBD9C", "#F0A7CA"),
+          marker = list(
+            width = 1.5
+                        )) %>%
+  layout(title = 'LULUCF Sources and Sinks by TES Subsector and Category',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'),
+         xaxis = list(title = '', tickangle = -90),
+         legend = list(x = 0.75, y = 0.4, orientation = 'v'),
+         autosize = F, width = 1000, height = 600,
+         autoexpand = T,
+         barmode = 'group'
+         )
+
+
+#Plotly customization
+style(LULUCFcat_int, 
+hovertemplate="Category: %{x}
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+
+```{r LULUCF cat, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, stacked by greenhouse gas identity."}
+
+colors <- c(
+        "#3CBD9C", #transport
+        "#F0A7CA", #buildings
+        "#F0C954", #industry
+        "#C24841", #electricity
+        "#96BC61", #ag green
+        "#5D7ED1", #lulucf blue
+        "#D38744", #fuel
+        "#A780BB"  #waste purple
+      )
 
 #Bar plot by source with Plotly
-LULUCFsource <- LULUCFwideGHG %>% 
-  plot_ly(x = ~category_1, y = ~CO2, type = 'bar', name = 'CO2') %>% 
-  add_trace(y = ~CH4, name = 'CH4') %>%
-  add_trace(y = ~N2O, name = 'N2O') %>%
+LULUCFcat2_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>% 
+  group_by(tes_category, ghg) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~CH4, name = 'CH4', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
   layout(barmode = 'stack', 
-         title = list(text = "UK's LULUCF Emissions in 2022", pad = list(t=50, b=50)),
-         yaxis = list(title = 'Emissions (Mt CO2 equivalents)'),
-         xaxis = list(title = 'Source', showticklabels=FALSE))
-         #legend = list(orientation = "h", title=list(text='<b>Subsector</b>')))
+         title = list(text = "LULUCF Sources and Sinks by TES Category and Greenhouse Gas", pad = list(t=50, b=50)),
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 equivalents)'),
+         xaxis = list(title = '', tickangle = -90),
+         autosize = F, width = 1000, height = 600,
+         autoexpand = T
+         #legend = list(orientation = "h", title=list(text='<b>Subsector</b>'))
+  )
 
 #Plotly customization
-style(LULUCFsource, 
+style(LULUCFcat2_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") 
+%{y:,.4r} Mt CO2 eq.") 
 
 ```
 
-```{r, message=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by subsector and grouped by greenhouse gas identity."}
+```{r, eval=FALSE, include=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's LULUCF sector in 2022 by source, colored by subsector and grouped by greenhouse gas identity."}
 
 #Plot GHGs into side-by-side plots with Plotly
 LULUCF_CO2 <- LULUCFwideGHG %>% 
@@ -994,227 +1001,278 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the bioenergy crops subsector in 2022 by source, colored by greenhouse gas identity."}
+##### Subsector GHGs
 
-#Bar plot subsector, stacked by GHG
-biocrops <- LULUCF %>%
+```{r biocrops, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the bioenergy crops subsector in 2022 by category."}
+
+#Bar plot biocrops, stacked by GHG with Plotly
+biocrops_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
   filter(tes_subsector == "Bioenergy crops") %>%
-ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2022: Bioenergy Crops") + #add a graph title
-  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x=element_blank())
-        #axis.text.x = element_text(size=8, colour = "black"))
+  group_by(tes_category, ghg) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  layout(title = 'LULUCF Bioenergy crops',
+         yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
 
-#Make interactive with Plotly
-biocrops_int <- ggplotly(biocrops) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h",
-      xaxis = list(showticklabels=FALSE)))
-  
 #Plotly customization
 style(biocrops_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+Removals: %{y:,.4r} Mt CO2 eq.
+<extra></extra>") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the cropland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r crop soil1, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the cropland mineral soils change subsector in 2022 by category, stacked by greenhouse gas identity."}
 
-#Bar plot subsector, stacked by GHG
-cropsoilchg <- LULUCF %>%
+#Bar plot subsector, stacked by GHG with Plotly
+cropsoilchg_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
   filter(tes_subsector == "Cropland mineral soils change") %>%
-ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2022: Cropland Mineral Soils Change") + #add a graph title
-  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x=element_blank())
-        #axis.text.x = element_text(size=8, colour = "black"))
-
-#Make interactive with Plotly
-cropsoilchg_int <- ggplotly(cropsoilchg) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h",
-      xaxis = list(showticklabels=FALSE)))
+  group_by(tes_category, ghg) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
+  layout(title = 'Cropland mineral soils change by Category',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
+  
   
 #Plotly customization
 style(cropsoilchg_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+%{y:,.4r} Mt CO2 eq."
+) #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the grassland mineral soils change subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r crop soil, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the cropland mineral soils change subsector in 2022 by category, stacked by source."}
 
-#Bar plot subsector, stacked by GHG
-grsoilchg <- LULUCF %>%
+
+#Bar plot subsector, filled by source_3 with Plotly
+cropsoilchg2 <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
+  filter(tes_subsector == "Cropland mineral soils change") %>%
+  group_by(tes_category, source_3) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
+cropsoilchg2$source_3[cropsoilchg2$source_3 == ''] <- 'Cropland'
+
+cropsoilchg2_int <- cropsoilchg2 %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~Temissions, 
+                           color = ~source_3, colors = colors) %>%
+  layout(title = 'Cropland mineral soils change by Category and Source',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
+  
+  
+#Plotly customization
+style(cropsoilchg2_int, 
+hovertemplate="Source: %{x}
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r grass soil, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the grassland mineral soils change subsector in 2022 by category, stacked by source."}
+
+#Bar plot subsector, filled by source_3 with Plotly
+grsoilchg <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
   filter(tes_subsector == "Grassland mineral soils change") %>%
-ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2022: Grassland Mineral Soils Change") + #add a graph title
-  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x=element_blank())
-        #axis.text.x = element_text(size=8, colour = "black"))
+  group_by(tes_category, source_3, activity) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
+grsoilchg$source_3[grsoilchg$source_3 == ''] <- "Converted to grassland"
 
-#Make interactive with Plotly
-grsoilchg_int <- ggplotly(grsoilchg) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h",
-      xaxis = list(showticklabels=FALSE)))
+grsoilchg_int <- grsoilchg %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~Temissions, 
+                           color = ~source_3, colors = colors) %>%
+  layout(title = 'Grassland mineral soils change by Category and Source',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
   
 #Plotly customization
 style(grsoilchg_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the forestry subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r forestry, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the forestry subsector in 2022 by category, stacked by source."}
 
-#Bar plot subsector, stacked by GHG
-forestry <- LULUCF %>%
+#Bar plot subsector, filled by source_3 with Plotly
+forestry <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
   filter(tes_subsector == "Forestry") %>%
-ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2022: Forestry") + #add a graph title
-  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x=element_blank())
-        #axis.text.x = element_text(size=8, colour = "black"))
+  group_by(tes_category, source_3, source_2) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
+forestry$source_3[forestry$source_3 == ''] <- forestry$source_2
 
-#Make interactive with Plotly
-forestry_int <- ggplotly(forestry) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h",
-      xaxis = list(showticklabels=FALSE)))
+forestry_int <- forestry %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~Temissions, 
+                           color = ~source_3, colors = colors) %>%
+  layout(title = 'Forestry by Category and Source',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
   
 #Plotly customization
 style(forestry_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the peatland subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r peat, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the peatland subsector in 2022 by category, stacked by greenhouse gas identity."}
 
-#Bar plot subsector, stacked by GHG
-peat <- LULUCF %>%
+#Bar plot subsector, stacked by GHG with Plotly
+peat_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
   filter(tes_subsector == "Peatland") %>%
-ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2022: Peatland") + #add a graph title
-  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x=element_blank())
-        #axis.text.x = element_text(size=8, colour = "black"))
-
-#Make interactive with Plotly
-peat_int <- ggplotly(peat) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h",
-      xaxis = list(showticklabels=FALSE)))
+  group_by(tes_category, ghg) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~CH4, name = 'CH4', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
+  layout(title = 'Peatland by Category and GHG',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
   
 #Plotly customization
 style(peat_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the settlement subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r set1, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the settlement subsector in 2022 by category, stacked by source."}
 
-#Bar plot subsector, stacked by GHG
-settle <- LULUCF %>%
+#Bar plot subsector, filled by source_2 with Plotly
+settle_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
   filter(tes_subsector == "Settlement") %>%
-ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2022: Settlement") + #add a graph title
-  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x=element_blank())
-        #axis.text.x = element_text(size=8, colour = "black"))
-
-#Make interactive with Plotly
-settle_int <- ggplotly(settle) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h",
-      xaxis = list(showticklabels=FALSE)))
+  group_by(tes_category, source_2) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~Temissions, 
+                           color = ~source_2, colors = colors) %>%
+  layout(title = 'Settlement by Category and Source',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
   
 #Plotly customization
 style(settle_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the 'other' LULUCF subsector in 2022 by source, colored by greenhouse gas identity."}
+```{r set2, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the settlement subsector in 2022 by source, stacked by greenhouse gas identity."}
 
-#Bar plot other ag, stacked by GHG
-Lother <- LULUCF %>%
+#Bar plot subsector, stacked by GHG with Plotly
+peat_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
+  filter(tes_subsector == "Settlement") %>%
+  group_by(source_2, ghg) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~source_2, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
+  layout(title = 'Settlement by Source and GHG',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
+  
+#Plotly customization
+style(peat_int, 
+hovertemplate="Source: %{x}
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+```{r LULUCF other1, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the 'other LULUCF' subsector in 2022 by category, stacked by greenhouse gas identity."}
+
+#Bar plot subsector, stacked by GHG with Plotly
+Lother_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
   filter(tes_subsector == "Other LULUCF") %>%
-ggplot(aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  #scale_x_discrete(guide = guide_axis(angle = 45)) +
-  ggtitle("Subsector Emissions in 2022: Other LULUCF") + #add a graph title
-  xlab("") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="left", legend.box = "vertical", 
-        axis.text.x=element_blank())
-        #axis.text.x = element_text(size=8, colour = "black"))
-
-#Make interactive with Plotly
-Lother_int <- ggplotly(Lother) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h",
-      xaxis = list(showticklabels=FALSE)))
+  group_by(tes_category, ghg) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~CH4, name = 'CH4', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
+  layout(title = 'Other LULUCF by Category and GHG',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
   
 #Plotly customization
 style(Lother_int, 
 hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
   
 ```
 
+```{r LULUCF other2, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the 'other LULUCF' subsector in 2022 by TES category, stacked by National Communication category."}
+
+#Bar plot subsector, filled by source_2 with Plotly
+Lother2_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "LULUCF") %>%
+  filter(tes_subsector == "Other LULUCF") %>%
+  group_by(tes_category, national_communication_category) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~Temissions, 
+                           color = ~national_communication_category, colors = colors) %>%
+  layout(title = 'Other LULUCF by TES and National Communication Categories',
+         yaxis = list(title = 'Emissions/Removals (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack'
+         )
+  
+#Plotly customization
+style(Lother2_int, 
+hovertemplate="Source: %{x}
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+```
+
+
 ### Waste
 
-```{r, warning=FALSE}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 waste_df <- GHG_UK2022 %>%
   filter(tes_sector == "Waste") %>% #filter sector
   replace(is.na(.), "")
   #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
   #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-#wide - split GHGs
-waste_wideGHG <- waste_df %>%
-  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
-  replace(is.na(.), 0)
-
-```
-
-```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 #Set up Sankey links dataframe
 wastelinks <- data.frame(source=c(paste0(waste_df$ghg), paste0(waste_df$activity)), 
@@ -1245,7 +1303,7 @@ wastesankey
 
 #### Waste Breakdown Graphs
 
-```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's waste greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
+```{r, eval=FALSE, include=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's waste greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
 
 wastepie <- waste_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
   add_pie(labels = ~ghg, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
@@ -1265,6 +1323,12 @@ style(wastepie, hovertemplate="%{label}
 ```
 
 ```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
+
+waste_df <- GHG_UK2022 %>%
+  filter(tes_sector == "Waste") %>% #filter sector
+  replace(is.na(.), "")
+  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
+  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
 
 #Bar plot by subsector, stacked by ghg
 wastebar <- ggplot(waste_df, aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
@@ -1288,22 +1352,13 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ### Buildings and product uses
 
-```{r, warning=FALSE}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 build_df <- GHG_UK22 %>%
   filter(tes_sector == "Buildings and product uses") %>% #filter sector
   replace(is.na(.), "")
   #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
   #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
-
-#wide - split GHGs
-build_wideGHG <- build_df %>%
-  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
-  replace(is.na(.), 0)
-
-```
-
-```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 #Set up Sankey links dataframe
 buildlinks <- data.frame(source=c(paste0(build_df$ghg), paste0(build_df$tes_subsector)), 
@@ -1334,22 +1389,13 @@ buildsankey
 
 ### Domestic transport
 
-```{r, warning=FALSE}
+```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022."}
 
 transport <- GHG_UK22 %>%
   filter(tes_sector == "Domestic transport") %>% #filter sector
   replace(is.na(.), "")
   #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
   #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
-
-#wide - split GHGs
-transport_wideGHG <- transport %>%
-  pivot_wider(names_from = ghg, values_from=emissions_mt_co2e) %>%
-  replace(is.na(.), 0)
-
-```
-
-```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022."}
 
 #Set up Sankey links dataframe
 transportlinks <- data.frame(source=c(paste0(transport$ghg), paste0(transport$tes_subsector)), 
