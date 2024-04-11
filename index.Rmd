@@ -344,11 +344,13 @@ style(sb, hovertemplate="%{label}
 
 ### Sunburst Diagram of Removals
 
-```{r removals sunburst, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sunburst diagram demonstrating proportional breakdown of greenhouse gas removals in the UK (Land Use, Land Use Change, and Forestry Sector) in 2022."}
+```{r removals sunburst, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Sunburst diagram demonstrating proportional breakdown of greenhouse gas removals in the UK (Land Use, Land Use Change, and Forestry Sector) in 2022."}
 
 #Format data for sunburst
 GHG_UK2022neg <- GHG_UK2022 %>%
   filter(emissions_mt_co2e <= "0") #subset filter only negative values
+
+GHG_UK2022neg$source_2[c(6:8,13,14)] <- GHG_UK2022neg$source_1[c(6:8,13,14)] #replace empty source 2 values with source 1
 
 #Separate out variables summaries - all GHGs combined
 subsectors_neg <- GHG_UK2022neg %>%
@@ -359,8 +361,8 @@ cat_neg <- GHG_UK2022neg %>%
   group_by(tes_subsector, tes_category) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
 
-act_neg <- GHG_UK2022neg %>%
-  group_by(tes_subsector, tes_category, activity) %>%
+src_neg <- GHG_UK2022neg %>%
+  group_by(tes_subsector, tes_category, source_2) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
   unite('parents', c(tes_subsector, tes_category), remove = TRUE, sep = " - ") #combine higher categories into parents
 
@@ -378,9 +380,9 @@ GHGsb1_neg <- GHGsb1_neg %>%
 
 #Now paste together distinct instances into dataframe with hierarchical structure - add on
 GHGsb2_neg <- data.frame(
-  parents =c(paste0(cat_neg$tes_subsector), paste0(act_neg$parents)),
-  labels =c(paste0(cat_neg$tes_category), paste0(act_neg$activity)),
-  values =as.numeric(c(paste0(cat_neg$Temissions), paste0(act_neg$Temissions)))
+  parents =c(paste0(cat_neg$tes_subsector), paste0(src_neg$parents)),
+  labels =c(paste0(cat_neg$tes_category), paste0(src_neg$source_2)),
+  values =as.numeric(c(paste0(cat_neg$Temissions), paste0(src_neg$Temissions)))
 )
 
 #Add id column                    
@@ -659,7 +661,7 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ##### Subsector GHGs
 
-```{r ag c, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural combustion subsector in 2022 by category, stacked by fuel type."}
+```{r ag c, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural combustion subsector in 2022 by category, stacked by fuel type."}
 
 #Bar plot combustion, stacked by fuel type with Plotly
 agcom_int <- GHG_UK2022 %>% 
@@ -798,7 +800,7 @@ Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values,
 
 ```
 
-```{r, warning=FALSE, fig.align = "center", out.width = '65%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural 'other' subsector in 2022 by category, stacked by greenhouse gas identity."}
+```{r, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the agricultural 'other' subsector in 2022 by category, stacked by greenhouse gas identity."}
 
 #Bar plot other ag, stacked by GHG
 agother_int <- GHG_UK2022 %>% 
@@ -1266,7 +1268,7 @@ hovertemplate="Source: %{x}
 
 ### Waste
 
-```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
+```{r waste sankey, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
 waste_df <- GHG_UK2022 %>%
   filter(tes_sector == "Waste") %>% #filter sector
