@@ -1268,85 +1268,35 @@ hovertemplate="Source: %{x}
 
 ### Waste
 
-```{r waste sankey, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
-
-waste_df <- GHG_UK2022 %>%
-  filter(tes_sector == "Waste") %>% #filter sector
-  replace(is.na(.), "")
-  #group_by(tes_subsector, tes_category, source, ghg, ghg_grouped, ipcc_code) %>%
-  #summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-#Set up Sankey links dataframe
-wastelinks <- data.frame(source=c(paste0(waste_df$ghg), paste0(waste_df$activity)), 
-                    target=c(paste0(waste_df$activity), paste0(waste_df$source_1)),
-                    value=as.numeric(paste0(waste_df$emissions_mt_co2e)))
-
-#Create nodes df from names in links df
-wastenodes <- data.frame(
-  name=unique(c(as.character(wastelinks$source), 
-  as.character(wastelinks$target))))
-
-#Add ID numbers
-wastelinks$IDsource <- as.numeric(match(wastelinks$source, wastenodes$name)-1)
-wastelinks$IDtarget <- as.numeric(match(wastelinks$target, wastenodes$name)-1)
-
-
-#Plot with networkD3
-wastesankey <- sankeyNetwork(Links = wastelinks, Nodes = wastenodes,
-              Source = "IDsource", Target = "IDtarget",
-              Value = "value", NodeID = "name",
-              units = "Mt CO2 eq.",
-              sinksRight=FALSE, nodePadding = 8,
-              iterations = 45)
-
-wastesankey
-
-```
-
 #### Waste Breakdown Graphs
 
-```{r, eval=FALSE, include=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Doughnut charts of the UK's waste greenhouse gas emissions by greenhouse gas identity and subsector in 2022."}
+```{r waste categories, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's Waste sector in 2022 by category, stacked by greenhouse gas identity."}
 
-wastepie <- waste_df %>% plot_ly(textinfo = 'label', insidetextorientation='horizontal') %>%
-  add_pie(labels = ~ghg, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 0)) %>% 
-  add_pie(labels = ~tes_category, values = ~emissions_mt_co2e, hole = 0.6, domain = list(row = 0, column = 2)) %>% 
-  layout(title = "Emissions by Greenhouse Gas Identity and Subsector",  showlegend = F,
-         #annotations = list(list(x = 0.20 , y = 1, text = "Emissions by Greenhouse Gas Identity"), 
-          #                  list(x = 0.80 , y = 1, text = "Emissions by Subsector")),
-         grid=list(rows=1, columns=3),
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) 
 
-style(wastepie, hovertemplate="%{label} 
-      Emissions: %{value:,.4r} Mt CO2 eq.
-      %{percent}
-      <extra></extra>")
+#Bar plot by subsector, stacked by GHG with Plotly
+Waste_int <- GHG_UK2022 %>% 
+  filter(tes_sector == "Waste") %>%
+  group_by(tes_category, ghg, ghg_grouped) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg_grouped, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~CH4, name = 'CH4', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
+  layout(yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
+         xaxis = list(title = 'Category'), 
+         barmode = 'stack'
+         )
 
-```
-
-```{r, eval=FALSE, include=FALSE, warning=FALSE, fig.align = "center", out.width = '95%', fig.cap="Bar graph showing greenhouse gas emissions in megatonnes of CO2 equivalents in the UK's waste sector in 2022 by subsector, colored by greenhouse gas identity."}
-
-#Bar plot by subsector, stacked by ghg
-wastebar <- ggplot(waste_df, aes(x = tes_category, y = emissions_mt_co2e, fill = ghg)) + 
-  geom_col() + 
-  theme_few() + #remove grid, white background
-  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
-  xlab("Source") + ylab("Emissions (Mt CO2 eq.)") + #define/change X and Y labels
-  theme(legend.position="top", legend.box = "horizontal",
-        text=element_text(size=10, colour = "black"), axis.text.x=element_blank())
-
-#Make interactive with Plotly
-wastebar_int <- ggplotly(wastebar) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h"))
-  
 #Plotly customization
-style(wastebar_int, hovertemplate="Source: %{x}
-Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+style(Waste_int, hovertemplate="Category: %{x}
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 ```
 
-### Buildings and product uses
+### Other Sectors
+
+Buildings and product uses
 
 ```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's buildings and product uses sector in 2022."}
 
@@ -1383,7 +1333,7 @@ buildsankey
 
 ```
 
-### Domestic transport
+Domestic transport
 
 ```{r, eval=FALSE, include=FALSE, fig.align = "center", out.width = '95%', fig.cap="Sankey diagram demonstrating breakdown of greenhouse gas emissions in the UK's transport sector in 2022."}
 
@@ -1419,3 +1369,9 @@ transportsankey <- sankeyNetwork(Links = transportlinks, Nodes = transportnodes,
 transportsankey
 
 ```
+
+Electricity supply
+
+Fuel supply
+
+Industry
