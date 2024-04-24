@@ -55,20 +55,17 @@ GHG_UK22 <- read_ods(
 
 # Subset data ####
 
-##2022 only
-GHG_UK2022 <- GHG_UK22 %>%
-  filter(year == "2022")
-
 ##Positive values only
-GHG_UK2022pos <- GHG_UK2022 %>%
+GHG_UK22pos <- GHG_UK22 %>%
   filter(emissions_mt_co2e >= "0") #subset filter only positive values
 
 ##Negative values only
-GHG_UK2022neg <- GHG_UK2022 %>%
+GHG_UK22neg <- GHG_UK22 %>%
   filter(emissions_mt_co2e <= "0") #subset filter only negative values
 
 ##Simplify
-GHG_simp <- GHG_UK2022 %>%
+GHG_simp <- GHG_UK22 %>%
+  filter(year == 2022) %>%
   group_by(tes_sector, tes_subsector, category_2, category_1, activity) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
   replace(is.na(.), "") %>%
@@ -78,6 +75,12 @@ GHG_simp <- GHG_UK2022 %>%
 GHG_wide <- GHG_UK22 %>%
   pivot_wider(names_from = ghg_grouped, values_from=emissions_mt_co2e) %>%
   replace(is.na(.), 0)
+
+# Define filters ####
+
+##Years, gases for user to select from
+year <- unique(GHG_UK22$year)
+GHG <- unique(GHG_UK22$ghg_grouped)
 
 # Define colors ####
 
@@ -101,214 +104,8 @@ colors_3lvls <- c(
 )
 
 
-# Time Series ####
 
-#Plot time series
-Sect_time <- GHG_UK22 %>%
-  group_by(year, tes_sector) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-  rename("Sector" = "tes_sector") %>% #rename variable
-  ggplot(aes(x=as.numeric(year), y=Temissions, color=Sector)) +
-  geom_line() +
-  xlab("") + ylab("Greenhouse Gas Emissions (Megatonnes CO2 eq.)") +
-  ggtitle("Greenhouse Gas Emissions of the UK per Sector Over Time") +
-  theme_few() +
-  scale_y_continuous(labels = comma) +
-  scale_x_continuous(breaks = pretty(c(1990:2020), n=6)) +
-  scale_color_brewer(palette = "Set2") +
-  theme(legend.position="bottom")
-
-#Sect_time #view ggplot 
-
-#Make interactive with Plotly
-t_int <- plotly::ggplotly(Sect_time) %>% #convert to interactive graph
-  layout(legend = list(
-    orientation = "h")) %>%
-    style(t_int, hovertemplate="Year: %{x:,.r} #define what hover label says, round x values
-          CO2eq: %{y:,.4r} kt") #round y values to 4 sig. figs
-    
-    
-# Emissions sunburst plotly ####
-
-##Format data for sunburst
-##Separate out variables summaries - all GHGs combined
-sectors <- GHG_UK2022pos %>%
-      group_by(tes_sector) %>%
-      summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-    
-subsectors <- GHG_UK2022pos %>%
-      group_by(tes_sector, tes_subsector) %>%
-      summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-    
-cat_2 <- GHG_UK2022pos %>%
-      filter(category_2 != "") %>%
-      group_by(tes_sector, tes_subsector, category_2) %>%
-      summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-      unite('parents', c(tes_sector, tes_subsector), remove = TRUE, sep = " - ") #combine higher categories into parents
-    
-cat_1 <- GHG_UK2022pos %>%
-      group_by(tes_sector, tes_subsector, category_2, category_1) %>%
-      summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-      mutate(parents = case_when(
-        category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, sep = " - "),
-        category_2 == "" ~str_c(tes_sector,tes_subsector, sep = " - ")))
-    
-act_1 <- GHG_UK2022pos %>%
-      group_by(tes_sector, tes_subsector, category_2, category_1, activity_1) %>%
-      summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-      mutate(parents = case_when(
-        category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, category_1, sep = " - "),
-        category_2 == "" ~str_c(tes_sector,tes_subsector, category_1, sep = " - ")
-      ))
-    
-act_2 <- GHG_UK2022pos %>%
-      filter(activity_2 != "") %>%
-      group_by(tes_sector, tes_subsector, category_2, category_1, activity_1, activity_2) %>%
-      summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-      mutate(parents = case_when(
-        category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, category_1, activity_1, sep = " - "),
-        category_2 == "" ~str_c(tes_sector,tes_subsector, category_1, activity_1, sep = " - ")
-      ))
-    
-    
-##Now paste together distinct instances into dataframe with hierarchical structure - start simple, set root
-GHGsb1 <- data.frame(
-      parents =c(rep("", 8)),
-      labels =c(paste0(sectors$tes_sector)),
-      values =as.numeric(c(paste0(sectors$Temissions)))
-    )
-    
-##Add id column
-GHGsb1 <- GHGsb1 %>%
-  mutate(ids = labels) 
-    
-##Now paste together distinct instances into dataframe with hierarchical structure - add on
-GHGsb2 <- data.frame(
-      parents =c(paste0(subsectors$tes_sector), paste0(cat_2$parents), paste0(cat_1$parents), 
-                 paste0(act_1$parents), paste0(act_2$parents)),
-      labels =c(paste0(subsectors$tes_subsector), paste0(cat_2$category_2), paste0(cat_1$category_1), 
-                paste0(act_1$activity_1), paste0(act_2$activity_2)),
-      values =as.numeric(c(paste0(subsectors$Temissions), paste0(cat_2$Temissions), paste0(cat_1$Temissions), paste0(act_1$Temissions), paste0(act_2$Temissions)))
-    )
-    
-##Add id column                    
-GHGsb2 <- GHGsb2 %>%
-  unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
-    
-##Combine into one dataframe
-GHGsb <- rbind(GHGsb1, GHGsb2) 
-    
-    
-##Interactive sunburst with Plotly
-sb <- plot_ly(GHGsb,
-                  type = 'sunburst',
-                  ids = ~ids,
-                  labels = ~labels,
-                  parents = ~parents,
-                  values = ~values,
-                  branchvalues = 'total', #parents are totals of children
-                  insidetextorientation='radial',
-                  maxdepth = 2, #how many levels to show
-                  level = "",
-                  sort = TRUE #sort by size
-                  #width = 800, height = 800 #plot dimensions
-    ) %>%
-      layout(
-        margin = list(l = 10, r = 10, b = 10, t = 10),
-        sunburstcolorway = colors,
-        extendsunburstcolors = TRUE
-      ) %>%
-    style(sb, hovertemplate="%{label} 
-      %{value:,.3r} Mt CO2 equivalents
-      %{percentParent:.1%} of %{parent} emissions
-      <extra></extra>")
-
-# Removals sunburst ####
-
-##Format data for sunburst
-GHG_UK2022neg <- GHG_UK2022 %>%
-  filter(emissions_mt_co2e <= "0") #subset filter only negative values
-
-GHG_UK2022neg$source_2[c(6:8,13,14)] <- GHG_UK2022neg$source_1[c(6:8,13,14)] #replace empty source 2 values with source 1
-
-##Separate out variables summaries - all GHGs combined
-subsectors_neg <- GHG_UK2022neg %>%
-  group_by(tes_subsector) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
-
-cat_neg <- GHG_UK2022neg %>%
-  group_by(tes_subsector, tes_category) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
-
-src_neg <- GHG_UK2022neg %>%
-  group_by(tes_subsector, tes_category, source_2) %>%
-  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-  unite('parents', c(tes_subsector, tes_category), remove = TRUE, sep = " - ") #combine higher categories into parents
-
-
-##Now paste together distinct instances into dataframe with hierarchical structure - start simple, set root
-GHGsb1_neg <- data.frame(
-  parents =c(rep("", 6)),
-  labels =c(paste0(subsectors_neg$tes_subsector)),
-  values =as.numeric(c(paste0(subsectors_neg$Temissions)))
-)
-
-##Add id column
-GHGsb1_neg <- GHGsb1_neg %>%
-  mutate(ids = labels) 
-
-##Now paste together distinct instances into dataframe with hierarchical structure - add on
-GHGsb2_neg <- data.frame(
-  parents =c(paste0(cat_neg$tes_subsector), paste0(src_neg$parents)),
-  labels =c(paste0(cat_neg$tes_category), paste0(src_neg$source_2)),
-  values =as.numeric(c(paste0(cat_neg$Temissions), paste0(src_neg$Temissions)))
-)
-
-##Add id column                    
-GHGsb2_neg <- GHGsb2_neg %>%
-  unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
-
-##Combine into one dataframe
-GHGsb_neg <- rbind(GHGsb1_neg, GHGsb2_neg) 
-
-##Convert negative values to absolute (positive) values
-GHGsb_neg$values <- abs(GHGsb_neg$values)
-
-##Interactive sunburst with Plotly
-sb_neg <- plot_ly(GHGsb_neg,
-                  type = 'sunburst',
-                  ids = ~ids,
-                  labels = ~labels,
-                  parents = ~parents,
-                  values = ~values,
-                  branchvalues = 'total', #parents are totals of children
-                  insidetextorientation='radial',
-                  maxdepth = 2, #how many levels to show
-                  level = "",
-                  sort = TRUE #sort by size
-                  #width = 800, height = 800 #plot dimensions
-) %>%
-  layout(
-    #margin = list(l = 10, r = 10, b = 10, t = 10),
-    sunburstcolorway = c(
-      "#3CBD9C", #forestry
-               "#F0C954", #grassland
-               "#5D7ED1", #peatland
-               "#C24841", #other
-               "#96BC61",
-               "#F0A7CA", 
-               "#D38744", 
-               "#A780BB"
-    ),
-    extendsunburstcolors = TRUE
-  ) %>%
-  style(sb_neg, hovertemplate="%{label} 
-      %{value:,.3r} Mt CO2 equivalents
-      %{percentParent:.1%} of %{parent} removals
-      <extra></extra>")
-
-
-# Build UI dashboard ####
+# Build UI dashboard frame ####
 ui <- grid_page(
   layout = c(
     "header     header     header   ",
@@ -332,13 +129,17 @@ ui <- grid_page(
     area = "filter",
     card_header(
     ),
-    card_body("Filter",
+    card_body("Filters",
+              selectInput(
+                inputId = "Select_year",
+                label = "Year",
+                selected = max(year), #default select most recent
+                choices = year),
               selectInput(
                 inputId = "Select_GHG",
-                label = "GHG",
-                choices = list("All" = "All", "CO2" = "CO2", "CH4" = "CH4", "N2O" = "N2O")
-              )
-    )
+                label = "GHG group",
+                selected = GHG, #default include all
+                choices = GHG),
   ),
   grid_card_text(
     area = "header",
@@ -356,7 +157,7 @@ ui <- grid_page(
     area = "removals",
     full_screen = TRUE,
     card_header("Negative Emissions (Removals)"),
-    card_body(plotlyOutput(outputId = "plot"))
+    card_body(plotlyOutput(outputId = "sb_neg"))
   ),
   grid_card(
     area = "emissions",
@@ -364,10 +165,230 @@ ui <- grid_page(
     card_header("Greenhouse Gas Emissions"),
     card_body(plotlyOutput(outputId = "sb"))
   )
-)
+))
+
+# Server define inputs outputs ####
 
 server <- function(input, output, session) {
+  
+  ## Time Series ####
+  
+  produce_timeplot <- shiny::reactive({
+  
+  #Plot time series
+  Sect_time <- GHG_UK22 %>%
+    filter(ghg_grouped %in% input$select_GHG) %>%
+    group_by(year, tes_sector) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+    rename("Sector" = "tes_sector") %>% #rename variable
+    ggplot(aes(x=as.numeric(year), y=Temissions, color=Sector)) +
+    geom_line() +
+    xlab("") + ylab("Greenhouse Gas Emissions (Megatonnes CO2 eq.)") +
+    ggtitle("Greenhouse Gas Emissions of the UK per Sector Over Time") +
+    theme_few() +
+    scale_y_continuous(labels = comma) +
+    scale_x_continuous(breaks = pretty(c(1990:2020), n=6)) +
+    scale_color_brewer(palette = "Set2") +
+    theme(legend.position="bottom")
+  
+  #Make interactive with Plotly
+  t_int <- plotly::ggplotly(Sect_time) %>% #convert to interactive graph
+    layout(legend = list(
+      orientation = "h")) %>%
+    style(t_int, hovertemplate="Year: %{x:,.r} #define what hover label says, round x values
+          CO2eq: %{y:,.4r} kt") #round y values to 4 sig. figs
+  })
+  
+  ## Emissions data format for sunburst ####
+  
+  ##Separate out variables summaries - all GHGs combined
+  sectors <- GHG_UK22pos %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    group_by(tes_sector) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+  
+  subsectors <- GHG_UK22pos %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    group_by(tes_sector, tes_subsector) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+  
+  cat_2 <- GHG_UK22pos %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    filter(category_2 != "") %>%
+    group_by(tes_sector, tes_subsector, category_2) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+    unite('parents', c(tes_sector, tes_subsector), remove = TRUE, sep = " - ") #combine higher categories into parents
+  
+  cat_1 <- GHG_UK22pos %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    group_by(tes_sector, tes_subsector, category_2, category_1) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+    mutate(parents = case_when(
+      category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, sep = " - "),
+      category_2 == "" ~str_c(tes_sector,tes_subsector, sep = " - ")))
+  
+  act_1 <- GHG_UK22pos %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    group_by(tes_sector, tes_subsector, category_2, category_1, activity_1) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+    mutate(parents = case_when(
+      category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, category_1, sep = " - "),
+      category_2 == "" ~str_c(tes_sector,tes_subsector, category_1, sep = " - ")
+    ))
+  
+  act_2 <- GHG_UK22pos %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    filter(activity_2 != "") %>%
+    group_by(tes_sector, tes_subsector, category_2, category_1, activity_1, activity_2) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+    mutate(parents = case_when(
+      category_2 != "" ~str_c(tes_sector,tes_subsector,category_2, category_1, activity_1, sep = " - "),
+      category_2 == "" ~str_c(tes_sector,tes_subsector, category_1, activity_1, sep = " - ")
+    ))
+  
+  
+  ##Now paste together distinct instances into dataframe with hierarchical structure - start simple, set root
+  GHGsb1 <- data.frame(
+    parents =c(rep("", 8)),
+    labels =c(paste0(sectors$tes_sector)),
+    values =as.numeric(c(paste0(sectors$Temissions)))
+  )
+  
+  ##Add id column
+  GHGsb1 <- GHGsb1 %>%
+    mutate(ids = labels) 
+  
+  ##Now paste together distinct instances into dataframe with hierarchical structure - add on
+  GHGsb2 <- data.frame(
+    parents =c(paste0(subsectors$tes_sector), paste0(cat_2$parents), paste0(cat_1$parents), 
+               paste0(act_1$parents), paste0(act_2$parents)),
+    labels =c(paste0(subsectors$tes_subsector), paste0(cat_2$category_2), paste0(cat_1$category_1), 
+              paste0(act_1$activity_1), paste0(act_2$activity_2)),
+    values =as.numeric(c(paste0(subsectors$Temissions), paste0(cat_2$Temissions), paste0(cat_1$Temissions), paste0(act_1$Temissions), paste0(act_2$Temissions)))
+  )
+  
+  ##Add id column                    
+  GHGsb2 <- GHGsb2 %>%
+    unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
+  
+  ##Combine into one dataframe
+  GHGsb <- rbind(GHGsb1, GHGsb2) 
+  
+  
+  ## Sunburst Emissions with Plotly ####
+  sb <- plot_ly(GHGsb,
+                type = 'sunburst',
+                ids = ~ids,
+                labels = ~labels,
+                parents = ~parents,
+                values = ~values,
+                branchvalues = 'total', #parents are totals of children
+                insidetextorientation='radial',
+                maxdepth = 2, #how many levels to show
+                level = "",
+                sort = TRUE #sort by size
+                #width = 800, height = 800 #plot dimensions
+  ) %>%
+    layout(
+      margin = list(l = 10, r = 10, b = 10, t = 10),
+      sunburstcolorway = colors,
+      extendsunburstcolors = TRUE
+    ) %>%
+    style(sb, hovertemplate="%{label} 
+      %{value:,.3r} Mt CO2 equivalents
+      %{percentParent:.1%} of %{parent} emissions
+      <extra></extra>")
+  
+  ## Removals data format for sunburst ####
+  
+  ##Replace empty source 2 values with source 1
+  GHG_UK22neg$source_2[GHG_UK22neg$source_2 == ""] <- NA #also works to replace blanks or any value defined here with NA across a dataframe
+  GHG_UK22neg$source_2[is.na(GHG_UK22neg$source_2)] <- GHG_UK22neg$source_1[is.na(GHG_UK22neg$source_2)]
+  
+  ##Separate out variables summaries - all GHGs combined
+  subsectors_neg <- GHG_UK22neg %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    group_by(tes_subsector) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE))
+  
+  cat_neg <- GHG_UK22neg %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    group_by(tes_subsector, tes_category) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) 
+  
+  src_neg <- GHG_UK22neg %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    group_by(tes_subsector, tes_category, source_2) %>%
+    summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+    unite('parents', c(tes_subsector, tes_category), remove = TRUE, sep = " - ") #combine higher categories into parents
+  
+  
+  ##Now paste together distinct instances into dataframe with hierarchical structure - start simple, set root
+  GHGsb1_neg <- data.frame(
+    parents =c(rep("", 6)),
+    labels =c(paste0(subsectors_neg$tes_subsector)),
+    values =as.numeric(c(paste0(subsectors_neg$Temissions)))
+  )
+  
+  ##Add id column
+  GHGsb1_neg <- GHGsb1_neg %>%
+    mutate(ids = labels) 
+  
+  ##Now paste together distinct instances into dataframe with hierarchical structure - add on
+  GHGsb2_neg <- data.frame(
+    parents =c(paste0(cat_neg$tes_subsector), paste0(src_neg$parents)),
+    labels =c(paste0(cat_neg$tes_category), paste0(src_neg$source_2)),
+    values =as.numeric(c(paste0(cat_neg$Temissions), paste0(src_neg$Temissions)))
+  )
+  
+  ##Add id column                    
+  GHGsb2_neg <- GHGsb2_neg %>%
+    unite('ids', c(parents, labels), remove = FALSE, sep = " - ") #combine columns for id
+  
+  ##Combine into one dataframe
+  GHGsb_neg <- rbind(GHGsb1_neg, GHGsb2_neg) 
+  
+  ##Convert negative values to absolute (positive) values
+  GHGsb_neg$values <- abs(GHGsb_neg$values)
+  
+  ## Sunburst Removals with Plotly ####
+  sb_neg <- plot_ly(GHGsb_neg,
+                    type = 'sunburst',
+                    ids = ~ids,
+                    labels = ~labels,
+                    parents = ~parents,
+                    values = ~values,
+                    branchvalues = 'total', #parents are totals of children
+                    insidetextorientation='radial',
+                    maxdepth = 2, #how many levels to show
+                    level = "",
+                    sort = TRUE #sort by size
+                    #width = 800, height = 800 #plot dimensions
+  ) %>%
+    layout(
+      #margin = list(l = 10, r = 10, b = 10, t = 10),
+      sunburstcolorway = c(
+        "#3CBD9C", #forestry
+                 "#F0C954", #grassland
+                 "#5D7ED1", #peatland
+                 "#C24841", #other
+                 "#96BC61",
+                 "#F0A7CA", 
+                 "#D38744", 
+                 "#A780BB"
+      ),
+      extendsunburstcolors = TRUE
+    ) %>%
+    style(sb_neg, hovertemplate="%{label} 
+      %{value:,.3r} Mt CO2 equivalents
+      %{percentParent:.1%} of %{parent} removals
+      <extra></extra>")
+  
+  
 
+  output$t_int <- renderPlotly({produce_timeplot})
+  
+  
 }
 
 
