@@ -171,9 +171,9 @@ ui <- grid_page(
 
 server <- function(input, output, session) {
   
+  produce_timeplot <- reactive({
+    
   ## Time Series ####
-  
-  produce_timeplot <- shiny::reactive({
   
   #Plot time series
   Sect_time <- GHG_UK22 %>%
@@ -191,6 +191,8 @@ server <- function(input, output, session) {
     scale_color_brewer(palette = "Set2") +
     theme(legend.position="bottom")
   
+  #Sect_time #view ggplot 
+  
   #Make interactive with Plotly
   t_int <- plotly::ggplotly(Sect_time) %>% #convert to interactive graph
     layout(legend = list(
@@ -198,6 +200,8 @@ server <- function(input, output, session) {
     style(t_int, hovertemplate="Year: %{x:,.r} #define what hover label says, round x values
           CO2eq: %{y:,.4r} kt") #round y values to 4 sig. figs
   })
+  
+  produce_eplot <- reactive({
   
   ## Emissions data format for sunburst ####
   
@@ -299,6 +303,10 @@ server <- function(input, output, session) {
       %{percentParent:.1%} of %{parent} emissions
       <extra></extra>")
   
+  })
+  
+  produce_rplot <- reactive({
+  
   ## Removals data format for sunburst ####
   
   ##Replace empty source 2 values with source 1
@@ -383,13 +391,16 @@ server <- function(input, output, session) {
       %{value:,.3r} Mt CO2 equivalents
       %{percentParent:.1%} of %{parent} removals
       <extra></extra>")
-  
+  })
   
 
-  output$t_int <- renderPlotly({produce_timeplot})
+  output$t_plot <- renderPlotly({produce_timeplot})
+  output$sb_plot <- renderPlotly({produce_eplot})
+  output$sb_neg_plot <- renderPlotly({produce_rplot})
   
   
 }
 
 
 shinyApp(ui, server)
+
