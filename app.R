@@ -105,7 +105,7 @@ colors_3lvls <- c(
 
 
 
-# Build UI dashboard frame ####
+# Build UI dashboard frame with grid layout ####
 ui <- grid_page(
   layout = c(
     "header     header     header   ",
@@ -127,45 +127,48 @@ ui <- grid_page(
   gap_size = "1rem",
   grid_card(
     area = "filter",
-    card_header(
+    card_header("Filters"
     ),
-    card_body("Filters",
+    card_body(
               selectInput(
                 inputId = "Select_year",
                 label = "Year",
                 selected = max(year), #default select most recent
-                choices = year),
+                choices = year)
+    ),
+    card_body(
               selectInput(
                 inputId = "Select_GHG",
                 label = "GHG group",
                 selected = GHG, #default include all
-                choices = GHG),
+                choices = GHG)
+  ),
   ),
   grid_card_text(
     area = "header",
     content = "UK Greenhouse Gas Inventory",
     alignment = "start",
-    is_title = TRUE
+    is_title = FALSE
   ),
   grid_card(
     area = "timeseries",
     full_screen = TRUE,
     card_header("Time Series - Net Emissions by Sector"),
-    card_body(plotlyOutput(outputId = "t_int"))
+    card_body(plotlyOutput(outputId = "t_plot"))
   ),
   grid_card(
     area = "removals",
     full_screen = TRUE,
     card_header("Negative Emissions (Removals)"),
-    card_body(plotlyOutput(outputId = "sb_neg"))
+    card_body(plotlyOutput(outputId = "sb_neg_plot"))
   ),
   grid_card(
     area = "emissions",
     full_screen = TRUE,
     card_header("Greenhouse Gas Emissions"),
-    card_body(plotlyOutput(outputId = "sb"))
+    card_body(plotlyOutput(outputId = "sb_plot"))
   )
-))
+)
 
 # Server define inputs outputs ####
 
@@ -401,6 +404,6 @@ server <- function(input, output, session) {
   
 }
 
-
+# Run app ####
 shinyApp(ui, server)
 
