@@ -3,9 +3,9 @@ title: "UK Greenhouse Gas Inventory"
 output: 
   flexdashboard::flex_dashboard:
     theme:
-      bg: "#101010"
-      fg: "#FDF7F7" 
-      primary: "#ED79F9"
+      bg: "#FFFFFF"
+      fg: "#223022" 
+      primary: "#96BC61"
       base_font:
         google: Prompt
       code_font:
@@ -102,11 +102,13 @@ Sidebar {.sidebar}
 
 ```{r}
 
-selectInput(inputId = "select_GHG", #input name
-            label = "GHG group", #display text
+pickerInput("select_GHG", #input name
+            "GHG group", #display text
             choices = c("CO2","CH4","N2O","NF3","HFCs","PFCs","SF6"), 
             multiple = TRUE,
-            selected = c("CO2","CH4","N2O"))
+            options = list(`actions-box` = TRUE), #creates buttons
+            selected = c("CO2","CH4","N2O") #initial values 
+            )
 
 
 sliderInput("select_Year", #input name
@@ -128,16 +130,75 @@ Emissions are reported in megatonnes (Mt) of carbon dioxide (CO2) equivalents (e
 Created by Kaydee Barker for Defra's Net Zero Teams.
 
 
-High-Level View Across All Sectors
+High-Level View Across All Sectors {data-orientation=rows}
 =======================================================================
-
-
 Row
 -----------------------------------------------------------------------
+### GHG Emissions (Mt CO2 eq.)
 
+```{r, error=FALSE, out.width = '70%'}
+
+renderValueBox({
+
+#Calculate total positive emissions
+emissions <- GHG_UK22 %>%
+  filter(emissions_mt_co2e >= "0") %>%
+  filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+  summarize(sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  round(., 1) #1 digit after decimal
+
+valueBox(emissions, 
+         icon = "ion-fireball", color = "#C24841")
+
+})
+
+
+```
+
+### Negative Emissions (Mt CO2 eq.)
+
+```{r, error=FALSE,}
+
+renderValueBox({
+  
+#Calculate total negative emissions
+removals <- GHG_UK22 %>%
+  filter(emissions_mt_co2e <= "0") %>%
+  filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+  summarize(sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  round(., 1) #1 digit after decimal
+
+valueBox(removals,
+         icon = "ion-leaf", color = "#3CBD9C")
+
+})
+
+```
+
+### Net Emissions (Mt CO2 eq.)
+
+```{r, error=FALSE,}
+
+renderValueBox({
+  
+#Calculate total emissions
+net <- GHG_UK22 %>%
+  filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+  summarize(sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  round(., 1) #1 digit after decimal
+
+valueBox(net, 
+         icon = "ion-load-a", color = "#F0C954")
+
+})
+
+```
+
+Row {data-height=650}
+-----------------------------------------------------------------------
 ### Greenhouse Gas (GHG) Emissions by Sector
 
-```{r}
+```{r, error=FALSE,}
 
 produce_eplot <- shiny::reactive({
   
@@ -249,10 +310,9 @@ renderPlotly({produce_eplot()})
 
 Row
 -----------------------------------------------------------------------
-
 ### Negative CO2 Emissions (Removals)
 
-```{r}
+```{r, error=FALSE,}
 
 produce_rplot <- shiny::reactive({
   
@@ -349,10 +409,9 @@ GHG_neg <- GHG_UK22 %>%
 plotly::renderPlotly({produce_rplot()})
 
 ```
+### Time Series
 
-### Time Series Chart
-
-```{r}
+```{r, error=FALSE,}
 
 produce_tplot <- shiny::reactive({
   
@@ -376,8 +435,8 @@ produce_tplot <- shiny::reactive({
     t_int <- plotly::ggplotly(Sect_time) %>% #convert to interactive graph
       layout(legend = list(
         orientation = "h")) #%>%
-    style(t_int, hovertemplate="Year: %{x:,.r} #define what hover label says, round x values
-          CO2eq: %{y:,.4r} kt") #round y values to 4 sig. figs
+    style(t_int, hovertemplate="Year: %{x:,.r}
+          CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y values to 4 sig. figs
     
     #t_int
   
@@ -389,14 +448,17 @@ renderPlotly({produce_tplot()})
 
 ```
 
+Defra Sector Graphs {data-orientation=rows}
+=======================================================================
+
 Row {.tabset .tabset-fade}
 -------------------------------------
    
-### Agriculture
+### Agriculture 
 
 #### Agriculture Emissions by Subsector
 
-```{r}
+```{r, error=FALSE,}
 
 produce_agplot <- shiny::reactive({
 
@@ -427,7 +489,7 @@ renderPlotly({produce_agplot()})
 
 #### Agriculture Emissions by Category
 
-```{r}
+```{r, error=FALSE,}
 
 produce_agcatplot <- shiny::reactive({
   
