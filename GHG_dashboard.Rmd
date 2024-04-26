@@ -107,7 +107,7 @@ pickerInput("select_GHG", #input name
             choices = c("CO2","CH4","N2O","NF3","HFCs","PFCs","SF6"), 
             multiple = TRUE,
             options = list(`actions-box` = TRUE), #creates buttons
-            selected = c("CO2","CH4","N2O") #initial values 
+            selected = c("CO2","CH4","N2O","NF3","HFCs","PFCs","SF6") #initial values 
             )
 
 
@@ -121,14 +121,11 @@ sliderInput("select_Year", #input name
 
 ```
 
-The UK's greenhouse gas (GHG) inventory background...
+Select gases and year you would like to view to update the figures to the right.
 
 Emissions are reported in megatonnes (Mt) of carbon dioxide (CO2) equivalents (eq.). 
 
-
-
-Created by Kaydee Barker for Defra's Net Zero Teams.
-
+Data from the [Department for Energy Security and Net Zero](https://www.data.gov.uk/dataset/9568363e-57e5-4c33-9e00-31dc528fcc5a/uk-greenhouse-gas-emissions-final).
 
 High-Level View Across All Sectors {data-orientation=rows}
 =======================================================================
@@ -197,7 +194,7 @@ valueBox(net,
 Row {data-height=650}
 -----------------------------------------------------------------------
 ### Greenhouse Gas (GHG) Emissions by Sector
-
+Click a division within the pie to "zoom in" and view a further breakdown of that sector or category. Click the center to "zoom out" back towards the broader view. 
 ```{r, error=FALSE,}
 
 produce_eplot <- shiny::reactive({
@@ -208,6 +205,11 @@ produce_eplot <- shiny::reactive({
   GHG_pos <- GHG_UK22 %>%
     filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
     filter(emissions_mt_co2e >= "0") #subset filter only positive values
+  
+  validate(
+  need(input$select_GHG != "", "Insufficient data. Please change your selection on the left.")
+  #need(!is.null(emissions_mt_co2e), "Insufficient data. Please change your selection on the left.")
+  )
   
   ##Separate out variables summaries
   sectors <- GHG_pos %>%
@@ -428,7 +430,15 @@ produce_tplot <- shiny::reactive({
     theme_few() +
     scale_y_continuous(labels = comma) +
     scale_x_continuous(breaks = pretty(c(1990:2020), n=6)) +
-    scale_color_brewer(palette = "Set2") +
+    scale_fill_manual(values = c("#96BC61", #ag green,
+                                 "#F0A7CA", #buildings,
+                                 "#3CBD9C", #transport
+                                 "#C24841", #electricity
+                                 "#D38744", #fuel
+                                 "#F0C954", #industry
+                                 "#5D7ED1", #lulucf blue
+                                 "#A780BB"  #waste purple
+           )) +
     theme(legend.position="bottom")
     
     #Make interactive with Plotly
@@ -436,7 +446,7 @@ produce_tplot <- shiny::reactive({
       layout(legend = list(
         orientation = "h")) #%>%
     style(t_int, hovertemplate="Year: %{x:,.r}
-          CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y values to 4 sig. figs
+          CO2eq: %{y:,.4r} Mt") #define what hover label says, round x values, round y values to 4 sig. figs
     
     #t_int
   
@@ -448,10 +458,65 @@ renderPlotly({produce_tplot()})
 
 ```
 
+Row
+-----------------------------------------------------------------------
+### Data Summary
+
+```{r}
+
+renderTable({
+  
+  #Create filtered dataframe with columns for positive and negative emissions
+  GHG_table <- GHG_UK22 %>%
+    #filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    filter(year == "2022") %>%
+    mutate(pos_e = ifelse(emissions_mt_co2e >= 0, emissions_mt_co2e, 0)) %>%
+    mutate(neg_e = ifelse(emissions_mt_co2e <= 0, emissions_mt_co2e, 0)) %>%
+    rename("Sector" = "tes_sector") %>% #rename variable
+    rename("Subsector" = "tes_subsector") #rename variable
+  
+  #Summarize positive emissions
+  GHG_postable <- GHG_table %>%
+    group_by(Sector, Subsector) %>%
+    summarize("Positive Emissions" = sum(pos_e, na.rm = TRUE))
+  
+  #Summarize negative emissions
+  GHG_negtable <- GHG_table %>%
+    group_by(Sector, Subsector) %>%
+    summarize("Negative Emissions" = sum(neg_e, na.rm = TRUE))
+  
+  #Combine positive and negative into one table
+  GHG_posneg <- inner_join(GHG_postable, GHG_negtable,
+                       by= c('Sector', 'Subsector')) 
+  
+  #Summarize net emissions
+  GHG_nettable <- GHG_table %>%
+    group_by(Sector, Subsector) %>%
+    summarize("Net Emissions" = sum(emissions_mt_co2e, na.rm = TRUE))
+  
+  #Combine into one summary table
+  GHG_summary <- inner_join(GHG_posneg, GHG_nettable,
+                       by= c('Sector', 'Subsector')) 
+  
+  #Round numbers
+  #GHG_summary <- GHG_summary %>%
+  #formatC("Positive Emissions", digits = 1, format = "f") %>%
+  #formatC("Negative Emissions", digits = 1, format = "f") %>%
+  #formatC("Net Emissions", digits = 1, format = "f")
+  
+  summary_rows <- nrow(GHG_summary)
+  
+  head(GHG_summary, n = summary_rows)
+  
+})
+
+```
+
+
 Defra Sector Graphs {data-orientation=rows}
 =======================================================================
 
-Row {.tabset .tabset-fade}
+Row {.tabset .tabset-fade data-height=2000}
 -------------------------------------
    
 ### Agriculture 
@@ -489,7 +554,7 @@ renderPlotly({produce_agplot()})
 
 #### Agriculture Emissions by Category
 
-```{r, error=FALSE,}
+```{r, error=FALSE}
 
 produce_agcatplot <- shiny::reactive({
   
