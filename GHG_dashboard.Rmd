@@ -25,9 +25,9 @@ vislibraries <- c("ggplot2", "ggthemes", "scales") #pretty plots
 applibraries <- c("shiny", "plotly", "shinyWidgets", "flexdashboard", "DT") #libraries for app
 
 ##Install packages
-#lapply(datalibraries, install.packages, character.only = TRUE)
-#lapply(vislibraries, install.packages, character.only = TRUE)
-#lapply(applibraries, install.packages, character.only = TRUE)
+lapply(datalibraries, install.packages, character.only = TRUE)
+lapply(vislibraries, install.packages, character.only = TRUE)
+lapply(applibraries, install.packages, character.only = TRUE)
 
 ##Load libraries
 lapply(datalibraries, library, character.only = TRUE)
@@ -93,7 +93,7 @@ colors_3lvls <- c(
 #Set new error message across all errors from input
 if (!interactive()) {
   options(shiny.error = function() {
-    stop("Insufficient data. Please change your selection on the left.")
+    stop("Insufficient data. Please change your filter selection on the left.")
   })
 }
 
@@ -102,8 +102,7 @@ if (!interactive()) {
 Sidebar {.sidebar}
 ======================================================================
 
-
-### Filters
+#### Filters
 
 ```{r}
 
@@ -138,7 +137,7 @@ Row
 -----------------------------------------------------------------------
 ### GHG Emissions (Mt CO2 eq.)
 
-```{r, error=FALSE, out.width = '70%'}
+```{r, error=FALSE}
 
 renderValueBox({
 
@@ -159,7 +158,7 @@ valueBox(emissions,
 
 ### Negative Emissions (Mt CO2 eq.)
 
-```{r, error=FALSE,}
+```{r, error=FALSE}
 
 renderValueBox({
   
@@ -179,7 +178,7 @@ valueBox(removals,
 
 ### Net Emissions (Mt CO2 eq.)
 
-```{r, error=FALSE,}
+```{r, error=FALSE}
 
 renderValueBox({
   
@@ -199,7 +198,7 @@ valueBox(net,
 Row {data-height=650}
 -----------------------------------------------------------------------
 ### Greenhouse Gas (GHG) Emissions by Sector
-Click a division within the pie to "zoom in" and view a further breakdown of that sector or category. Click the center to "zoom out" back towards the broader view. 
+Hover over sections to see details about emissions. Click a division within the pie to "zoom in" and view a further breakdown of that sector or category. Click the center to "zoom out" back towards the broader view. 
 ```{r, error=FALSE}
 
 produce_eplot <- shiny::reactive({
@@ -305,6 +304,7 @@ produce_eplot <- shiny::reactive({
     style(sb, hovertemplate="%{label} 
       %{value:,.3r} Mt CO2 equivalents
       %{percentParent:.1%} of %{parent} emissions
+      %{percentRoot:.1%} of Total emissions
       <extra></extra>")
   
   #sb
@@ -408,6 +408,7 @@ GHG_neg <- GHG_UK22 %>%
     style(sb_neg, hovertemplate="%{label} 
       %{value:,.3r} Mt CO2 equivalents
       %{percentParent:.1%} of %{parent} removals
+      %{percentRoot:.1%} of Total removals
       <extra></extra>")
   
   #sb_neg
@@ -540,49 +541,15 @@ DT::renderDataTable({
 Defra Sector Graphs {data-orientation=rows}
 =======================================================================
 
+
 Row {.tabset .tabset-fade data-height=5000}
 -------------------------------------
 
+For the bar graphs below, hover your pointer over bars to view details, and click on legend items to filter them out of the graph. At the top right of the plot, there are buttons that allow you to 1) download a png image of the plot, 2) zoom, pan, and select plot elements, and 3) change the amount of information you see when you hover over the graph (you can keep the default to view details about only the point you are hovering over, or you can choose to compare multiple data points).
+
 ### Agriculture Emissions
 
-#### Summary Agriculture Emissions
-
-```{r}
-
-DT::renderDataTable({
-  
-  #Create filtered dataframe with columns for positive and negative emissions
-  ag_table <- GHG_UK22 %>%
-    filter(tes_sector == "Agriculture") %>%
-    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
-    rename("Subsector" = "tes_subsector") %>% #rename variable
-    rename("Category" = "tes_category") %>% #rename variable
-    rename("Activity" = "activity") #rename variable
-  
-  #Summarize emissions
-  ag_summary <- ag_table %>%
-    group_by(Subsector, Category, Activity) %>%
-    summarize("Total Emissions" = sum(emissions_mt_co2e, na.rm = TRUE))
-  
-  #Round numbers
-  ag_summary$`Total Emissions` <- round(ag_summary$`Total Emissions`, 1)
-  
-  #Define number of rows to show
-  agsummary_rows <- nrow(ag_summary)
-  ag_summary <- head(ag_summary, n = agsummary_rows)
-  
-  #Call Datatable, options
-  DT::datatable(ag_summary, 
-                rownames = FALSE, #no row number labels
-                options = list(
-                               bPaginate = TRUE #more pages
-  ))
-  
-})
-
-```
-
-#### Agriculture Emissions by Subsector and GHG
+#### Emissions by Subsector and GHG
 
 ```{r, error=FALSE,}
 
@@ -614,7 +581,7 @@ renderPlotly({produce_agplot()})
 
 ```   
 
-#### Agriculture Emissions by Category
+#### Emissions by Category
 
 ```{r, error=FALSE}
 
@@ -694,10 +661,67 @@ renderPlotly({produce_agcom()})
 
 ```{r}
 
-produce_agsoil <- shiny::reactive({
+produce_soil1 <- shiny::reactive({
+
+  ##Replace empty source 2 values with source 1
+  GHG_UK22$source_2[GHG_UK22$source_2 == ""] <- NA #replace blanks with NA
+  GHG_UK22$source_2[is.na(GHG_UK22$source_2)] <- GHG_UK22$source_1[is.na(GHG_UK22$source_2)] 
+  
+  ##Replace empty source 3 values with source 2
+  GHG_UK22$source_3[GHG_UK22$source_3 == ""] <- NA #replace blanks with NA
+  GHG_UK22$source_3[is.na(GHG_UK22$source_3)] <- GHG_UK22$source_2[is.na(GHG_UK22$source_3)] 
+  
+#Bar plot data soil category and source
+agsoil_int <- GHG_UK22 %>% 
+  filter(tes_sector == "Agriculture") %>%
+  filter(tes_subsector == "Agricultural soils") %>%
+  filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+  group_by(category_1, source_3) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = source_3, values_from=Temissions) %>% #pivot to place values on sources
+  clean_names() %>%
+  droplevels() %>%
+  replace(is.na(.), 0) %>% #make NA into 0 to add
+  mutate(direct1 = direct + digestate_direct) %>% #combine direct sources
+  mutate(indirect_deposition1 = indirect_deposition + digestate_indirect_deposition) %>% #combine indirect deposition sources
+  mutate(indirect_leach1 = indirect_leach + digestate_indirect_leach) %>% #combine indirect leach sources
+  mutate(indirect_leach2 = indirect_leach1+ residue_indirect_leach) %>% #combine indirect leach sources
+  mutate(across(everything(),  ~ replace(., . <= 0, NA))) %>% #make back into NA to ignore in graph
+  
+  #Plot
+    plot_ly(x = ~category_1, type = 'bar', 
+          y = ~managed_histosols, name = 'Managed histosols', marker = list(color ="#D38744")) %>%
+  add_trace(y = ~liming, name = 'Liming', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~direct1, name = 'Direct', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~indirect_deposition1, name = 'Indirect deposition', marker = list(color ="#A780BB")) %>%
+  add_trace(y = ~indirect_leach2, name = 'Indirect leach', marker = list(color ="#5D7ED1")) %>%
+  add_trace(y = ~fertiliser_application, name = 'Fertiliser application', marker = list(color ="#F0C954")) %>%
+  add_trace(y = ~cropland_management, name = 'Cropland management', marker = list(color ="#96BC61")) %>%
+    layout(title = 'Agricultural Soil Emissions by Category and Source',
+         yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
+         xaxis = list(title = ''), 
+         barmode = 'stack',
+         hovermode = 'x'
+         )
+  
+#Plotly customization
+style(agsoil_int, 
+hovertemplate="Category: %{x}
+Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
+
+})
+
+renderPlotly({produce_soil1()})
+
+```
+
+
+```{r}
+
+produce_soil2 <- shiny::reactive({
 
 #Bar plot soil, stacked by GHG with Plotly
-agsoil_int <- GHG_UK22 %>% 
+agsoil2_int <- GHG_UK22 %>% 
   filter(tes_sector == "Agriculture") %>%
   filter(tes_subsector == "Agricultural soils") %>%
   filter(year == input$select_Year) %>%
@@ -714,38 +738,34 @@ agsoil_int <- GHG_UK22 %>%
          )
   
 #Plotly customization
-style(agsoil_int, 
+style(agsoil2_int, 
 hovertemplate="Source: %{x}
 Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 })
 
-renderPlotly({produce_agsoil()})
+renderPlotly({produce_soil2()})
 
 ```
 
-#### Livestock Emissions by Animal
+#### Livestock
 
 ```{r}
 
-produce_agls3 <- shiny::reactive({
+produce_agls <- shiny::reactive({
 
 #Bar plot livestock category, stacked by animal with Plotly
-agls3_int <- GHG_UK22 %>% 
+agls_int <- GHG_UK22 %>% 
   filter(tes_sector == "Agriculture") %>%
   filter(tes_subsector == "Livestock") %>%
-  filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+  #filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
   group_by(category_1, category_2) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
-  pivot_wider(names_from = category_2, values_from=Temissions) %>%
+  pivot_wider(names_from = category_1, values_from=Temissions) %>%
   clean_names() %>%
   droplevels() %>%
-  plot_ly(x = ~category_1, type = 'bar', y = ~beef_cattle, name = 'Beef cattle', marker = list(color ="#C24841")) %>%
-  add_trace(y = ~dairy_cattle, name = 'Dairy cattle', marker = list(color ="#D38744")) %>%
-  add_trace(y = ~sheep, name = 'Sheep', marker = list(color ="#96BC61")) %>%
-  add_trace(y = ~pigs, name = 'Pigs', marker = list(color ="#F0A7CA")) %>%
-  add_trace(y = ~poultry, name = 'Poultry', marker = list(color ="#A780BB")) %>%
-  add_trace(y = ~other_livestock, name = 'Other livestock', marker = list(color ="#3CBD9C")) %>%
+  plot_ly(x = ~category_2, type = 'bar', y = ~enteric_fermentation, name = 'Enteric fermentation', marker = list(color ="#F0A7CA")) %>%
+  add_trace(y = ~manure_management, name = 'Manure management', marker = list(color ="#96BC61")) %>%
   layout(title = 'Agricultural Livestock Emissions by Category and Animal',
          yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
          xaxis = list(title = ''), 
@@ -753,19 +773,16 @@ agls3_int <- GHG_UK22 %>%
          )
   
 #Plotly customization
-style(agls3_int, 
-hovertemplate="Source: %{x}
+style(agls_int, 
+hovertemplate="Livestock: %{x}
 Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 })
 
-renderPlotly({produce_agls3()})
+renderPlotly({produce_agls()})
 
 ```
 
-
-
-#### Livestock Emissions by Animal and GHG
 
 ```{r}
 
@@ -790,7 +807,7 @@ agls2_int <- GHG_UK22 %>%
   
 #Plotly customization
 style(agls2_int, 
-hovertemplate="Source: %{x}
+hovertemplate="Livestock: %{x}
 Emissions: %{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
 })
@@ -832,80 +849,41 @@ renderPlotly({produce_agother()})
 
 ```
 
-
-
 ### Waste
+
+#### Waste Emissions by Category and GHG
 
 ```{r}
 
+produce_wplot <- shiny::reactive({
+  
+  #Bar plot by subsector, stacked by GHG with Plotly
+Waste_int <- GHG_UK22 %>% 
+  filter(tes_sector == "Waste") %>%
+  group_by(tes_category, ghg, ghg_grouped) %>%
+  summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
+  pivot_wider(names_from = ghg_grouped, values_from=Temissions) %>%
+  droplevels() %>%
+  plot_ly(x = ~tes_category, type = 'bar', y = ~CO2, name = 'CO2', marker = list(color ="#3CBD9C")) %>%
+  add_trace(y = ~CH4, name = 'CH4', marker = list(color ="#C24841")) %>%
+  add_trace(y = ~N2O, name = 'N2O', marker = list(color ="#D38744")) %>%
+  layout(yaxis = list(title = 'Emissions (Mt CO2 eq.)'), 
+         xaxis = list(title = 'Category'), 
+         barmode = 'stack'
+         )
 
-```   
+#Plotly customization
+style(Waste_int, hovertemplate="Category: %{x}
+%{y:,.4r} Mt CO2 eq.") #define what hover label says, round x values, round y values to 4 sig. figs
 
+})
+
+renderPlotly({produce_wplot()})
+
+```
 
 ### Land Use, Land Use Change, and Forestry
 
-#### Summary LULUCF Emissions
-
-```{r}
-
-DT::renderDataTable({
-  
-  ##Replace empty source 2 values with source 1
-  GHG_UK22$source_2[GHG_UK22$source_2 == ""] <- NA #replace blanks with NA
-  GHG_UK22$source_2[is.na(GHG_UK22$source_2)] <- GHG_UK22$source_1[is.na(GHG_UK22$source_2)] 
-  
-  #Create filtered dataframe with columns for positive and negative emissions
-  LULUCF_table <- GHG_UK22 %>%
-    filter(tes_sector == "LULUCF") %>%
-    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
-    mutate(pos_e = ifelse(emissions_mt_co2e >= 0, emissions_mt_co2e, 0)) %>%
-    mutate(neg_e = ifelse(emissions_mt_co2e <= 0, emissions_mt_co2e, 0)) %>%
-    rename("Subsector" = "tes_subsector") %>% #rename variable
-    rename("Category" = "tes_category") %>% #rename variable
-    rename("Source" = "source_2") #rename variable
-  
-  #Summarize positive emissions
-  LULUCF_postable <- LULUCF_table %>%
-    group_by(Subsector, Category, Source) %>%
-    summarize("Positive Emissions" = sum(pos_e, na.rm = TRUE))
-  
-  #Summarize negative emissions
-  LULUCF_negtable <- LULUCF_table %>%
-    group_by(Subsector, Category, Source) %>%
-    summarize("Negative Emissions" = sum(neg_e, na.rm = TRUE))
-  
-  #Combine positive and negative into one table
-  LULUCF_posneg <- inner_join(LULUCF_postable, LULUCF_negtable,
-                       by= c('Subsector','Category','Source')) 
-  
-  #Summarize net emissions
-  LULUCF_nettable <- LULUCF_table %>%
-    group_by(Subsector, Category, Source) %>%
-    summarize("Net Emissions" = sum(emissions_mt_co2e, na.rm = TRUE))
-  
-  #Combine into one summary table
-  LULUCF_summary <- inner_join(LULUCF_posneg, LULUCF_nettable,
-                       by= c('Subsector','Category','Source')) 
-  
-  #Round numbers
-  LULUCF_summary$`Positive Emissions` <- round(LULUCF_summary$`Positive Emissions`, 1)
-  LULUCF_summary$`Negative Emissions` <- round(LULUCF_summary$`Negative Emissions`, 1)
-  LULUCF_summary$`Net Emissions` <- round(LULUCF_summary$`Net Emissions`, 1)
-  
-  #Define number of rows to show
-  LULUCFsummary_rows <- nrow(LULUCF_summary)
-  LULUCF_summary <- head(LULUCF_summary, n = LULUCFsummary_rows)
-  
-  #Call Datatable, options
-  DT::datatable(LULUCF_summary, 
-                rownames = FALSE, #no row number labels
-                options = list(
-                               bPaginate = TRUE #more pages
-  ))
-  
-})
-
-```
 
 #### Emissions by Subsector and GHG
 
@@ -976,3 +954,242 @@ renderPlotly({produce_lulucf2()})
 
 ```
 
+
+Summary Data Tables {data-orientation=rows}
+=======================================================================
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+
+### Agriculture Emissions
+
+```{r}
+
+DT::renderDataTable({
+  
+  #Create filtered dataframe with columns for positive and negative emissions
+  ag_table <- GHG_UK22 %>%
+    filter(tes_sector == "Agriculture") %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    rename("Subsector" = "tes_subsector") %>% #rename variable
+    rename("Category" = "tes_category") %>% #rename variable
+    rename("Activity" = "activity") #rename variable
+  
+  #Summarize emissions
+  ag_summary <- ag_table %>%
+    group_by(Subsector, Category, Activity) %>%
+    summarize("Total Emissions" = sum(emissions_mt_co2e, na.rm = TRUE))
+  
+  #Round numbers
+  ag_summary$`Total Emissions` <- round(ag_summary$`Total Emissions`, 1)
+  
+  #Define number of rows to show
+  agsummary_rows <- nrow(ag_summary)
+  ag_summary <- head(ag_summary, n = agsummary_rows)
+  
+  #Call Datatable, options
+  DT::datatable(ag_summary, 
+                rownames = FALSE, #no row number labels
+                options = list(
+                               bPaginate = TRUE #more pages
+  ))
+  
+})
+
+```
+
+
+### Waste Emissions
+
+```{r}
+
+DT::renderDataTable({
+  
+  #Create filtered dataframe with columns for positive and negative emissions
+  w_table <- GHG_UK22 %>%
+    filter(tes_sector == "Waste") %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    rename("Category" = "tes_category") %>% #rename variable
+    rename("Activity" = "activity") #rename variable
+  
+  #Summarize emissions
+  w_summary <- w_table %>%
+    group_by(Category, Activity) %>%
+    summarize("Total Emissions" = sum(emissions_mt_co2e, na.rm = TRUE))
+  
+  #Round numbers
+  w_summary$`Total Emissions` <- round(w_summary$`Total Emissions`, 1)
+  
+  #Define number of rows to show
+  wsummary_rows <- nrow(w_summary)
+  w_summary <- head(w_summary, n = wsummary_rows)
+  
+  #Call Datatable, options
+  DT::datatable(w_summary, 
+                rownames = FALSE, #no row number labels
+                options = list(
+                               bPaginate = TRUE #more pages
+  ))
+  
+})
+
+```
+
+
+### LULUCF Emissions
+
+```{r}
+
+DT::renderDataTable({
+  
+  ##Replace empty source 2 values with source 1
+  GHG_UK22$source_2[GHG_UK22$source_2 == ""] <- NA #replace blanks with NA
+  GHG_UK22$source_2[is.na(GHG_UK22$source_2)] <- GHG_UK22$source_1[is.na(GHG_UK22$source_2)] 
+  
+  #Create filtered dataframe with columns for positive and negative emissions
+  LULUCF_table <- GHG_UK22 %>%
+    filter(tes_sector == "LULUCF") %>%
+    filter(year == input$select_Year & ghg_grouped %in% input$select_GHG) %>%
+    mutate(pos_e = ifelse(emissions_mt_co2e >= 0, emissions_mt_co2e, 0)) %>%
+    mutate(neg_e = ifelse(emissions_mt_co2e <= 0, emissions_mt_co2e, 0)) %>%
+    rename("Subsector" = "tes_subsector") %>% #rename variable
+    rename("Category" = "tes_category") %>% #rename variable
+    rename("Source" = "source_2") #rename variable
+  
+  #Summarize positive emissions
+  LULUCF_postable <- LULUCF_table %>%
+    group_by(Subsector, Category, Source) %>%
+    summarize("Positive Emissions" = sum(pos_e, na.rm = TRUE))
+  
+  #Summarize negative emissions
+  LULUCF_negtable <- LULUCF_table %>%
+    group_by(Subsector, Category, Source) %>%
+    summarize("Negative Emissions" = sum(neg_e, na.rm = TRUE))
+  
+  #Combine positive and negative into one table
+  LULUCF_posneg <- inner_join(LULUCF_postable, LULUCF_negtable,
+                       by= c('Subsector','Category','Source')) 
+  
+  #Summarize net emissions
+  LULUCF_nettable <- LULUCF_table %>%
+    group_by(Subsector, Category, Source) %>%
+    summarize("Net Emissions" = sum(emissions_mt_co2e, na.rm = TRUE))
+  
+  #Combine into one summary table
+  LULUCF_summary <- inner_join(LULUCF_posneg, LULUCF_nettable,
+                       by= c('Subsector','Category','Source')) 
+  
+  #Round numbers
+  LULUCF_summary$`Positive Emissions` <- round(LULUCF_summary$`Positive Emissions`, 1)
+  LULUCF_summary$`Negative Emissions` <- round(LULUCF_summary$`Negative Emissions`, 1)
+  LULUCF_summary$`Net Emissions` <- round(LULUCF_summary$`Net Emissions`, 1)
+  
+  #Define number of rows to show
+  LULUCFsummary_rows <- nrow(LULUCF_summary)
+  LULUCF_summary <- head(LULUCF_summary, n = LULUCFsummary_rows)
+  
+  #Call Datatable, options
+  DT::datatable(LULUCF_summary, 
+                rownames = FALSE, #no row number labels
+                options = list(
+                               bPaginate = TRUE #more pages
+  ))
+  
+})
+
+```
+
+About {data-orientation=rows}
+=======================================================================
+
+The data for this dashboard tool come from the [UK Greenhouse Gas Emissions Inventory](https://www.data.gov.uk/dataset/9568363e-57e5-4c33-9e00-31dc528fcc5a/uk-greenhouse-gas-emissions-final), 
+which is published yearly (and publicly) by the [Department for Energy Security and Net Zero (DESNZ)](https://www.gov.uk/government/organisations/department-for-energy-security-and-net-zero). 
+It includes the final estimates of UK territorial greenhouse gas emissions from 1990 to 2 years previous of the current year. 
+
+The goals of this dashboard include:   
+
+* Provide quick snapshot views of the current and historical greenhouse gas emissions and removals of the UK   
+
+* Demonstrate the proportion of greenhouse gas emissions contributed by each sector in the UK   
+
+* Show the breakdown of emissions within each sector in an interactive way to allow people to explore specific aspects of the inventory over time   
+
+* Provide useful ready-to-go visuals for presentations, meetings, and internal documents   
+
+
+
+This dashboard tool was developed by [Kaydee Barker](https://kaydeebarker.com/) for the [Department
+for Environment Food & Rural Affairs (Defra)](https://www.gov.uk/government/organisations/department-for-environment-food-rural-affairs), 
+building on previous and ongoing inventory visualization projects as pioneered by Anne Jones and others, including the recent [Net Zero Inventory Mapping tool](https://jacobbillingham.shinyapps.io/CarbonVisualisations/) that was developed by Jacob Billingham in collaboration with Anne Jones, 
+a [Net Zero Systems Tool](https://gateway.zscloud.net/auD?origurl=https%3A%2F%2Fwebapps%2ecbas%2ecloud%2fNZST%2f&_ordtok=7WZ3WVh3BhF6qHkD3HPDHs6mGF) being developed by DESNZ, 
+and an Agriculture-specific inventory exploration tool being developed at [ADAS](https://adas.co.uk/). 
+Useful input and ideas for this tool came from across Defra, and it is my hope that the tool continues 
+to evolve into ever more useful versions that assist Defra and partners in their analyses and goals as we aim for a Net Zero future.
+
+The tool was built using the R coding language, RMarkdown, Shiny, and additional packages:
+
+R Core Team (2022). R: A language and environment for statistical
+  computing. R Foundation for Statistical Computing, Vienna, Austria.
+  URL https://www.R-project.org/.
+
+Aden-Buie G, Sievert C, Iannone R, Allaire J, Borges B (2023).
+  _flexdashboard: R Markdown Format for Flexible Dashboards_. R package
+  version 0.6.2, <https://CRAN.R-project.org/package=flexdashboard>.
+  
+JJ Allaire and Yihui Xie and Jonathan McPherson and Javier Luraschi
+  and Kevin Ushey and Aron Atkins and Hadley Wickham and Joe Cheng and
+  Winston Chang and Richard Iannone (2023). rmarkdown: Dynamic
+  Documents for R. R package version 2.20. URL
+  https://rmarkdown.rstudio.com.
+
+Arnold J (2024). _ggthemes: Extra Themes, Scales and Geoms for
+  'ggplot2'_. R package version 5.1.0,
+  <https://CRAN.R-project.org/package=ggthemes>.
+
+Chang W, Cheng J, Allaire J, Sievert C, Schloerke B, Xie Y, Allen J,
+  McPherson J, Dipert A, Borges B (2024). _shiny: Web Application
+  Framework for R_. R package version 1.8.1.1,
+  <https://CRAN.R-project.org/package=shiny>.
+
+Firke S (2023). _janitor: Simple Tools for Examining and Cleaning
+  Dirty Data_. R package version 2.2.0,
+  <https://CRAN.R-project.org/package=janitor>.
+
+Perrier V, Meyer F, Granjon D (2024). _shinyWidgets: Custom Inputs
+  Widgets for Shiny_. R package version 0.8.6,
+  <https://CRAN.R-project.org/package=shinyWidgets>.
+
+Schutten G, Chan C, Brohan P, Steuer D, Leeper T (2024). _readODS:
+  Read and Write ODS Files_. R package version 2.2.0,
+  <https://CRAN.R-project.org/package=readODS>.
+
+C. Sievert. Interactive Web-Based Data Visualization with R, plotly,
+  and shiny. Chapman and Hall/CRC Florida, 2020.
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis.
+  Springer-Verlag New York, 2016.
+
+Wickham H, Averick M, Bryan J, Chang W, McGowan LD, François R,
+  Grolemund G, Hayes A, Henry L, Hester J, Kuhn M, Pedersen TL, Miller
+  E, Bache SM, Müller K, Ooms J, Robinson D, Seidel DP, Spinu V,
+  Takahashi K, Vaughan D, Wilke C, Woo K, Yutani H (2019). "Welcome to
+  the tidyverse." _Journal of Open Source Software_, *4*(43), 1686.
+  doi:10.21105/joss.01686 <https://doi.org/10.21105/joss.01686>.
+  
+Wickham H, Bryan J (2023). _readxl: Read Excel Files_. R package
+  version 1.4.3, <https://CRAN.R-project.org/package=readxl>.
+
+Wickham H, François R, Henry L, Müller K, Vaughan D (2023). _dplyr: A
+  Grammar of Data Manipulation_. R package version 1.1.4,
+  <https://CRAN.R-project.org/package=dplyr>.
+
+Wickham H, Pedersen T, Seidel D (2023). _scales: Scale Functions for
+  Visualization_. R package version 1.3.0,
+  <https://CRAN.R-project.org/package=scales>.
+  
+Yihui Xie (2023). knitr: A General-Purpose Package for Dynamic Report
+  Generation in R. R package version 1.42.
+
+Xie Y, Cheng J, Tan X (2024). _DT: A Wrapper of the JavaScript
+  Library 'DataTables'_. R package version 0.33,
+  <https://CRAN.R-project.org/package=DT>.
