@@ -443,25 +443,29 @@ Sect_time <- GHG_UK22 %>%
   group_by(year, tes_sector) %>%
   summarize(Temissions = sum(emissions_mt_co2e, na.rm = TRUE)) %>%
   rename("Sector" = "tes_sector") %>% #rename variable
-ggplot(aes(x=as.numeric(year), y=Temissions, color=Sector)) +
-  geom_line() +
-  xlab("") + ylab("Greenhouse Gas Emissions (Megatonnes CO2 eq.)") +
-  ggtitle("Greenhouse Gas Emissions of the UK per Sector Over Time") +
-  theme_few() +
-  scale_y_continuous(labels = comma) +
-  scale_x_continuous(breaks = pretty(c(1990:2020), n=6)) +
-  scale_color_brewer(palette = "Set2") +
-  theme(legend.position="bottom")
+  pivot_wider(names_from = Sector, values_from=Temissions) %>%
+  clean_names() %>%
+  droplevels() %>%
+  ungroup() %>%
+plot_ly(x = ~year,
+                 y = ~agriculture, name = "Agriculture", line = list(color = "#96BC61", width = 2), 
+                 type = 'scatter', mode = 'lines') %>%
+  add_trace(y = ~buildings_and_product_uses, name = 'Buildings and product uses', line = list(color ="#F0A7CA", width = 2)) %>%
+  add_trace(y = ~domestic_transport, name = 'Domestic transport', line = list(color ="#3CBD9C", width = 2)) %>%
+  add_trace(y = ~electricity_supply, name = 'Electricity supply', line = list(color ="#C24841", width = 2)) %>%
+  add_trace(y = ~fuel_supply, name = 'Fuel supply', line = list(color ="#D38744", width = 2)) %>%
+  add_trace(y = ~industry, name = 'Industry', line = list(color ="#F0C954", width = 2)) %>%
+  add_trace(y = ~lulucf, name = 'Land Use, Land Use Change, and Forestry', line = list(color ="#5D7ED1", width = 2)) %>%
+  add_trace(y = ~waste, name = 'Waste', line = list(color ="#A780BB", width = 2)) %>%
+  layout(title = "Greenhouse Gas Emissions of the UK per Sector Over Time",
+                      xaxis = list(title = ""),
+                      yaxis = list(title = "Greenhouse Gas Emissions (Megatonnes CO2 eq.)"),
+                      legend = list(orientation = "h"))
 
-#Sect_time #view ggplot
 
-#Make interactive with Plotly
-t_int <- plotly::ggplotly(Sect_time) %>% #convert to interactive graph
-  layout(legend = list(
-      orientation = "h"))
-  
+
 #Plotly customization
-style(t_int, hovertemplate="Year: %{x:,.r}
+style(Sect_time, hovertemplate="Year: %{x:,.r}
 CO2eq: %{y:,.4r} kt") #define what hover label says, round x values, round y values to 4 sig. figs
 
 
